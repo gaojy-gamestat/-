@@ -78,3 +78,9 @@ sysinfo.txt
 # Never ignore meta files
 # =========================
 # !*.meta  <- meta files SHOULD be committed, this is just a reminder
+
+# E2E 测试与构建产物
+.e2e/
+Builds/
+/Build/
+recordings/

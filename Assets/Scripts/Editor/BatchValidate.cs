@@ -1,0 +1,228 @@
+using System;
+using System.IO;
+using System.Linq;
+using GameNet;
+using Unity.Netcode;
+using Unity.Netcode.Components;
+using Unity.Netcode.Transports.UTP;
+using UnityEditor;
+using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+namespace GameNet.EditorTools
+{
+    /// <summary>
+    /// 批处理验证：-executeMethod GameNet.EditorTools.BatchValidate.Validate
+    /// 检查场景/Prefab/NetworkManager/UI 接线完整性，失败时返回退出码 1。
+    /// </summary>
+    public static class BatchValidate
+    {
+        private static int m_Failures;
+
+        private static void Check(bool condition, string label)
+        {
+            if (condition)
+            {
+                Debug.Log($"[Validate] PASS {label}");
+            }
+            else
+            {
+                m_Failures++;
+                Debug.LogError($"[Validate] FAIL {label}");
+            }
+        }
+
+        public static void Validate()
+        {
+            m_Failures = 0;
+
+            // ---- Build Settings ----
+            var scenes = EditorBuildSettings.scenes.Select(s => System.IO.Path.GetFileNameWithoutExtension(s.path)).ToArray();
+            Check(scenes.Contains("MainMenu") && scenes.Contains("GamePlay"), $"BuildSettings 场景注册：[{string.Join(", ", scenes)}]");
+
+            // ---- MainMenu ----
+            var menu = EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity", OpenSceneMode.Single);
+            Check(menu.IsValid(), "MainMenu 场景加载");
+
+            var netGo = GameObject.Find("NetworkManager_GO");
+            Check(netGo != null, "NetworkManager_GO 存在");
+
+            var nm = netGo != null ? netGo.GetComponent<NetworkManager>() : null;
+            Check(nm != null, "NetworkManager 组件存在");
+            Check(nm != null && nm.GetComponent<UnityTransport>() != null, "UnityTransport 组件存在");
+            Check(nm != null && nm.GetComponent<GameNetworkManager>() != null, "GameNetworkManager 组件存在");
+            Check(nm != null && nm.GetComponent<MainMenuUIController>() != null, "MainMenuUIController 组件存在");
+
+            Check(nm != null && nm.NetworkConfig.PlayerPrefab != null, $"NetworkConfig.PlayerPrefab = {(nm != null && nm.NetworkConfig.PlayerPrefab != null ? nm.NetworkConfig.PlayerPrefab.name : "null")}");
+            Check(nm != null && nm.NetworkConfig.Prefabs.NetworkPrefabsLists.Count > 0, "NetworkPrefabsList 已注册");
+            Check(nm != null && nm.NetworkConfig.EnableSceneManagement, "EnableSceneManagement = true");
+            Check(nm != null && nm.NetworkConfig.ConnectionApproval, "ConnectionApproval = true");
+            Check(nm != null && nm.NetworkConfig.ForceSamePrefabs, "ForceSamePrefabs = true");
+
+            var playerObj = nm != null && nm.NetworkConfig.PlayerPrefab != null ? nm.NetworkConfig.PlayerPrefab : null;
+            Check(playerObj != null && playerObj.GetComponent<NetworkObject>() != null, "Player Prefab 带 NetworkObject");
+            Check(playerObj != null && playerObj.GetComponent<NetworkTransform>() != null, "Player Prefab 带 NetworkTransform");
+            Check(playerObj != null && playerObj.GetComponent<CharacterController>() != null, "Player Prefab 带 CharacterController");
+            Check(playerObj != null && playerObj.GetComponent<PlayerController>() != null, "Player Prefab 带 PlayerController");
+            Check(playerObj != null && playerObj.GetComponent<PlayerIdentity>() != null, "Player Prefab 带 PlayerIdentity");
+
+            var ui = netGo != null ? netGo.GetComponent<MainMenuUIController>() : null;
+            Check(ui != null && ui.Btn_CreateGame != null, "UI 引用 Btn_CreateGame");
+            Check(ui != null && ui.Btn_JoinGame != null, "UI 引用 Btn_JoinGame");
+            Check(ui != null && ui.Panel_CreateRoom != null && !ui.Panel_CreateRoom.activeSelf, "Panel_CreateRoom 存在且默认隐藏");
+            Check(ui != null && ui.Panel_JoinRoom != null && !ui.Panel_JoinRoom.activeSelf, "Panel_JoinRoom 存在且默认隐藏");
+            Check(ui != null && ui.Txt_RoomCode != null, "UI 引用 Txt_RoomCode");
+            Check(ui != null && ui.RoomStatus != null, "UI 引用 RoomStatus");
+            Check(ui != null && ui.PlayerCount != null, "UI 引用 PlayerCount");
+            Check(ui != null && ui.Btn_StartHost != null, "UI 引用 Btn_StartHost");
+            Check(ui != null && ui.Input_RoomCode != null, "UI 引用 Input_RoomCode");
+            Check(ui != null && ui.ErrorText != null, "UI 引用 ErrorText");
+            Check(ui != null && ui.Btn_JoinClient != null, "UI 引用 Btn_JoinClient");
+
+            Check(HasClickCall(ui.Btn_CreateGame, "OnClickCreateGame"), "创建游戏按钮 OnClick → OnClickCreateGame");
+            Check(HasClickCall(ui.Btn_JoinGame, "OnClickJoinGame"), "加入游戏按钮 OnClick → OnClickJoinGame");
+            Check(HasClickCall(ui.Btn_StartHost, "OnClickStartHost"), "开始游戏按钮 OnClick → OnClickStartHost");
+            Check(HasClickCall(ui.Btn_JoinClient, "OnClickJoinClient"), "加入按钮 OnClick → OnClickJoinClient");
+
+            // ---- GamePlay ----
+            var play = EditorSceneManager.OpenScene("Assets/Scenes/GamePlay.unity", OpenSceneMode.Single);
+            Check(play.IsValid(), "GamePlay 场景加载");
+            Check(Camera.main != null, "GamePlay 有主相机");
+            Check(GameObject.Find("GameplayBootstrap") != null, "GameplayBootstrap 存在");
+            Check(GameObject.Find("SpawnPoint_Host") != null && GameObject.Find("SpawnPoint_Client") != null, "出生点存在");
+            Check(GameObject.Find("Ground") != null, "地面存在");
+
+            Debug.Log(m_Failures == 0 ? "[Validate] 全部通过" : $"[Validate] 共 {m_Failures} 项失败");
+            EditorApplication.Exit(m_Failures == 0 ? 0 : 1);
+        }
+
+        private static bool HasClickCall(Button button, string method)
+        {
+            if (button == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+            {
+                if (button.onClick.GetPersistentMethodName(i) == method)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 生成 TMP 设置 + 中文字体资产（在正常打开的编辑器中执行一次即可）。
+        /// </summary>
+        [MenuItem("Tools/联机工程/生成 TMP 中文字体设置")]
+        public static void GenerateTmpFontMenu()
+        {
+            GenerateTmpFont();
+        }
+
+        [MenuItem("Tools/联机工程/验证工程配置（批处理）")]
+        public static void ValidateMenu()
+        {
+            Validate();
+        }
+
+        /// <summary>
+        /// 构建用于双实例 E2E 测试的 Windows 客户端。
+        /// -executeMethod GameNet.EditorTools.BatchValidate.BuildWindowsPlayer
+        /// </summary>
+        public static void BuildWindowsPlayer()
+        {
+            var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+            var options = new BuildPlayerOptions
+            {
+                scenes = scenes,
+                locationPathName = "Build/e2e/E2EClient.exe",
+                target = BuildTarget.StandaloneWindows64,
+                options = BuildOptions.None
+            };
+            var report = BuildPipeline.BuildPlayer(options);
+            Debug.Log($"[Build] result={report.summary.result} size={report.summary.totalSize} errors={report.summary.totalErrors}");
+            EditorApplication.Exit(report.summary.result == BuildResult.Succeeded && report.summary.totalErrors == 0 ? 0 : 1);
+        }
+
+        /// <summary>
+        /// 生成 TMP 设置 + 中文字体资产（在可用编辑器中执行一次，产物拷贝回仓库）。
+        /// -executeMethod GameNet.EditorTools.BatchValidate.GenerateTmpFont
+        /// </summary>
+        public static void GenerateTmpFont()
+        {
+            try
+            {
+                const string fontDir = "Assets/TextMesh Pro/Fonts";
+                const string resDir = "Assets/TextMesh Pro/Resources";
+                const string settingsPath = resDir + "/TMP Settings.asset";
+                const string fontAssetPath = resDir + "/Fonts & Materials/MSYH SDF.asset";
+
+                Directory.CreateDirectory(fontDir);
+                Directory.CreateDirectory(resDir);
+                Directory.CreateDirectory(resDir + "/Fonts & Materials");
+
+                var settings = AssetDatabase.LoadAssetAtPath<TMPro.TMP_Settings>(settingsPath);
+                if (settings == null)
+                {
+                    settings = ScriptableObject.CreateInstance<TMPro.TMP_Settings>();
+                    AssetDatabase.CreateAsset(settings, settingsPath);
+                }
+
+                var fontAsset = AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(fontAssetPath);
+                if (fontAsset == null)
+                {
+                    // 优先使用项目内导入的字体文件资产（保证运行时字形可动态生成）。
+                    Font projectFont = AssetDatabase.LoadAssetAtPath<Font>(fontDir + "/msyh.ttf")
+                                       ?? AssetDatabase.LoadAssetAtPath<Font>(fontDir + "/simhei.ttf");
+                    Font osFont = projectFont != null ? projectFont : Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 64);
+                    if (osFont == null)
+                    {
+                        Debug.LogError("找不到中文字体");
+                        EditorApplication.Exit(1);
+                        return;
+                    }
+
+                    fontAsset = TMPro.TMP_FontAsset.CreateFontAsset(osFont, 90, 9, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic);
+                    fontAsset.name = "MSYH SDF";
+                    AssetDatabase.CreateAsset(fontAsset, fontAssetPath);
+                    if (fontAsset.material != null)
+                    {
+                        fontAsset.material.name = "MSYH SDF Material";
+                        AssetDatabase.AddObjectToAsset(fontAsset.material, fontAsset);
+                    }
+                    if (fontAsset.atlasTextures != null)
+                    {
+                        foreach (var tex in fontAsset.atlasTextures)
+                        {
+                            if (tex != null)
+                            {
+                                AssetDatabase.AddObjectToAsset(tex, fontAsset);
+                            }
+                        }
+                    }
+
+                    Debug.Log("字体资产已创建：" + fontAssetPath);
+                }
+
+                TMPro.TMP_Settings.defaultFontAsset = fontAsset;
+                EditorUtility.SetDirty(settings);
+                AssetDatabase.SaveAssets();
+                Debug.Log("TMP Settings 默认字体已设置为 MSYH SDF");
+                EditorApplication.Exit(0);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("GenerateTmpFont 失败：" + e);
+                EditorApplication.Exit(1);
+            }
+        }
+    }
+}
