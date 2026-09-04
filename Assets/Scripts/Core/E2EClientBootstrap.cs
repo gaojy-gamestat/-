@@ -119,8 +119,25 @@ public class E2EClientRunner : MonoBehaviour
 
         m_Started = true;
         GameNetworkManager.Instance.SetConnectMode(ConnectMode.DirectIP);
-        Log("开始 DirectIP 加入 127.0.0.1:7777");
-        await GameNetworkManager.Instance.JoinClientAsync("127.0.0.1");
+
+        // UI 驱动：与真人点击完全同路径 —— 打开加入面板 → 填房间码 → 点"加入"按钮。
+        var netGo = GameObject.Find("NetworkManager_GO");
+        var ui = netGo != null ? netGo.GetComponent<MainMenuUIController>() : null;
+        if (ui != null && ui.Btn_JoinClient != null)
+        {
+            ui.OnClickJoinGame();
+            if (ui.Input_RoomCode != null)
+            {
+                ui.Input_RoomCode.text = "127.0.0.1";
+            }
+            ui.Btn_JoinClient.onClick.Invoke();
+            Log("CLIENT_UI_CLICKED 已点击 加入游戏/加入 按钮（房间码=127.0.0.1）");
+        }
+        else
+        {
+            Log("开始 DirectIP 加入 127.0.0.1:7777");
+            await GameNetworkManager.Instance.JoinClientAsync("127.0.0.1");
+        }
 
         if (GameNetworkManager.Instance.State == RoomState.Error)
         {

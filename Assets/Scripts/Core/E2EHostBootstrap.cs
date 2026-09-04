@@ -69,23 +69,43 @@ public class E2EHostPlayerRunner : MonoBehaviour
         var gameNet = net.GetComponent<GameNetworkManager>();
         gameNet.SetConnectMode(ConnectMode.DirectIP);
         gameNet.OnRoomStateChanged += () => Log($"STATE {gameNet.State}");
-        _ = StartHost(gameNet);
+
+        // UI 驱动：与真人点击完全同路径 —— 打开建房面板 → 点"创建房间"按钮。
+        var ui = net.GetComponent<MainMenuUIController>();
+        if (ui != null && ui.Btn_StartHost != null)
+        {
+            ui.OnClickCreateGame();
+            ui.Btn_StartHost.onClick.Invoke();
+            Log("HOST_UI_CLICKED 已点击 创建游戏/创建房间 按钮");
+            m_Phase = 10; // 等待建房完成的特殊阶段
+        }
+        else
+        {
+            _ = StartHost(gameNet);
+        }
     }
 
     private async System.Threading.Tasks.Task StartHost(GameNetworkManager gameNet)
     {
         await gameNet.StartHostAsync();
+        MarkHostReady();
+    }
 
-        if (gameNet.State == RoomState.WaitingForPlayer)
+    private void MarkHostReady()
+    {
+        // 状态可能一帧内从 Creating 直接跳到 PlayerJoined（Host 自身连接也算 Client），
+        // 因此只要不在 Creating/Error 即视为建房完成。
+        var state = GameNetworkManager.Instance.State;
+        if (state != RoomState.Creating && state != RoomState.Error)
         {
             Log("HOST_READY host 已启动，等待 Client 加入");
             Directory.CreateDirectory(Path.GetDirectoryName(HostReadyPath));
             File.WriteAllText(HostReadyPath, DateTime.Now.ToString("HH:mm:ss"));
             m_Phase = 1;
         }
-        else
+        else if (state == RoomState.Error)
         {
-            Fail("StartHost 失败：" + gameNet.LastError);
+            Fail("StartHost 失败：" + GameNetworkManager.Instance.LastError);
         }
     }
 
@@ -107,6 +127,13 @@ public class E2EHostPlayerRunner : MonoBehaviour
 
         switch (m_Phase)
         {
+            case 10:
+                if (GameNetworkManager.Instance.State == RoomState.WaitingForPlayer ||
+                    GameNetworkManager.Instance.State == RoomState.Error)
+                {
+                    MarkHostReady();
+                }
+                break;
             case 1:
                 if (nm.ConnectedClients.Count >= 1)
                 {
@@ -125,8 +152,19 @@ public class E2EHostPlayerRunner : MonoBehaviour
                 break;
             case 3:
                 if (m_PhaseTimer < 1f) break;
-                Log("HOST_STARTGAME 满员后开始游戏（Host 调用 NetworkSceneManager.LoadScene）");
-                GameNetworkManager.Instance.StartGame();
+                Log("HOST_STARTGAME 满员后开始游戏（点击 开始游戏 按钮 → Host 调用 NetworkSceneManager.LoadScene）");
+                var uiForStart = GameObject.Find("NetworkManager_GO") != null
+                    ? GameObject.Find("NetworkManager_GO").GetComponent<MainMenuUIController>()
+                    : null;
+                if (uiForStart != null && uiForStart.Btn_StartGame != null && uiForStart.Btn_StartGame.gameObject.activeSelf)
+                {
+                    uiForStart.Btn_StartGame.onClick.Invoke();
+                    Log("HOST_UI_CLICKED 已点击 开始游戏 按钮");
+                }
+                else
+                {
+                    GameNetworkManager.Instance.StartGame();
+                }
                 m_Phase = 4;
                 m_PhaseTimer = 0f;
                 break;

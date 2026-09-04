@@ -109,6 +109,17 @@ namespace GameNet
             NetworkManager.Singleton.OnTransportFailure += HandleTransportFailure;
             NetworkManager.Singleton.ConnectionApprovalCallback = ApproveConnection;
 
+            // 支持 --directip 命令行开关（E2E / 本机双开调试用）。
+            foreach (string arg in Environment.GetCommandLineArgs())
+            {
+                if (arg == "--directip")
+                {
+                    connectMode = ConnectMode.DirectIP;
+                    Debug.Log("[Net] 命令行 --directip：已切换为 DirectIP 模式。");
+                    break;
+                }
+            }
+
             SetState(RoomState.Idle);
         }
 
@@ -372,7 +383,7 @@ namespace GameNet
                 {
                     SpawnMissingPlayers();
                 }
-                SetState(count >= MaxPlayers ? RoomState.ReadyToStart : RoomState.PlayerJoined);
+                SetState(count >= MaxPlayers ? RoomState.ReadyToStart : RoomState.WaitingForPlayer);
             }
             else
             {
@@ -445,6 +456,11 @@ namespace GameNet
         // ------------------------------------------------------------------
         private async Task EnsureServicesReadyAsync()
         {
+            if (connectMode == ConnectMode.DirectIP)
+            {
+                return; // 本机/局域网直连不需要 UGS。
+            }
+
             if (UnityServices.State != ServicesInitializationState.Initialized)
             {
                 if (m_InitializingServices)
@@ -509,6 +525,7 @@ namespace GameNet
         {
             // Client 握手期间 StartClient 成功但一直连不上时给出超时反馈。
             if (m_State == RoomState.WaitingForPlayer && NetworkManager.Singleton != null &&
+                !NetworkManager.Singleton.IsHost &&
                 NetworkManager.Singleton.IsClient && NetworkManager.Singleton.IsConnectedClient)
             {
                 SetState(RoomState.PlayerJoined);

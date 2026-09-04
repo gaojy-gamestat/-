@@ -20,11 +20,13 @@ public class MainMenuUIController : MonoBehaviour
     public TMP_Text RoomStatus;
     public TMP_Text PlayerCount;
     public Button Btn_StartHost;
+    public Button Btn_StartGame;
 
     [Header("加入房间面板")]
     public GameObject Panel_JoinRoom;
     public TMP_InputField Input_RoomCode;
     public TMP_Text ErrorText;
+    public TMP_Text Txt_JoinStatus;
     public Button Btn_JoinClient;
 
     private GameNetworkManager Net => GameNetworkManager.Instance;
@@ -40,8 +42,14 @@ public class MainMenuUIController : MonoBehaviour
         if (Btn_StartHost != null) Btn_StartHost.onClick.AddListener(OnClickStartHost);
         if (Btn_JoinClient != null) Btn_JoinClient.onClick.AddListener(OnClickJoinClient);
         if (Btn_StartHost != null) Btn_StartHost.interactable = false;
+        if (Btn_StartGame != null)
+        {
+            Btn_StartGame.onClick.AddListener(OnClickStartGame);
+            Btn_StartGame.gameObject.SetActive(false);
+        }
 
         if (ErrorText != null) ErrorText.text = string.Empty;
+        if (Txt_JoinStatus != null) Txt_JoinStatus.text = string.Empty;
     }
 
     private void OnEnable()
@@ -132,6 +140,15 @@ public class MainMenuUIController : MonoBehaviour
         if (Panel_JoinRoom != null) Panel_JoinRoom.SetActive(false);
     }
 
+    public void OnClickStartGame()
+    {
+        Debug.Log("[UI] 点击 开始游戏");
+        if (Net != null)
+        {
+            Net.StartGame();
+        }
+    }
+
     public void OnClickQuit()
     {
         Debug.Log("[UI] 点击 退出");
@@ -183,10 +200,40 @@ public class MainMenuUIController : MonoBehaviour
             PlayerCount.text = $"{count}/{GameNetworkManager.MaxPlayers} 玩家";
         }
 
-        // Host 满员（2/2）才能开始游戏。
+        // 面板互斥保护：两个面板同时可见时关闭加入面板并记录日志。
+        if (Panel_CreateRoom != null && Panel_JoinRoom != null &&
+            Panel_CreateRoom.activeSelf && Panel_JoinRoom.activeSelf)
+        {
+            Debug.LogWarning("[UI] 检测到 创建/加入 面板同时激活，已强制关闭加入面板。");
+            Panel_JoinRoom.SetActive(false);
+        }
+
+        // Host：创建按钮只在未建房时可点；满员后显示"开始游戏"按钮。
         if (Btn_StartHost != null)
         {
-            Btn_StartHost.interactable = isHost && Net.State == RoomState.ReadyToStart;
+            bool idle = Net.State == RoomState.Idle || Net.State == RoomState.Error;
+            Btn_StartHost.interactable = isHost && idle;
+        }
+
+        if (Btn_StartGame != null)
+        {
+            bool canStart = isHost && Net.State == RoomState.ReadyToStart;
+            if (Btn_StartGame.gameObject.activeSelf != canStart)
+            {
+                Btn_StartGame.gameObject.SetActive(canStart);
+            }
+            Btn_StartGame.interactable = canStart;
+        }
+
+        // Client 成功提示（绿色）。
+        if (Txt_JoinStatus != null)
+        {
+            bool clientOk = !isHost && NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening &&
+                            (Net.State == RoomState.PlayerJoined || Net.State == RoomState.ReadyToStart ||
+                             Net.State == RoomState.Starting || Net.State == RoomState.LoadingGame);
+            Txt_JoinStatus.text = clientOk
+                ? (Net.State == RoomState.PlayerJoined ? "连接成功！等待主机开始…" : "主机已开始，正在进入游戏…")
+                : string.Empty;
         }
 
         if (Net.State == RoomState.Error && ErrorText != null && Panel_JoinRoom != null && Panel_JoinRoom.activeSelf)

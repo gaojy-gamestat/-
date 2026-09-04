@@ -153,20 +153,18 @@ namespace GameNet.EditorTools
         }
 
         /// <summary>
-        /// 生成 TMP 设置 + 中文字体资产（在可用编辑器中执行一次，产物拷贝回仓库）。
-        /// -executeMethod GameNet.EditorTools.BatchValidate.GenerateTmpFont
+        /// 生成 TMP 设置 + 中文字体资产（Noto Sans SC 动态字体，OFL 开源可再分发）。
+        /// 在可用编辑器中执行一次：-executeMethod GameNet.EditorTools.BatchValidate.GenerateTmpFont
         /// </summary>
         public static void GenerateTmpFont()
         {
             try
             {
-                const string fontDir = "Assets/TextMesh Pro/Fonts";
                 const string resDir = "Assets/TextMesh Pro/Resources";
                 const string settingsPath = resDir + "/TMP Settings.asset";
-                const string fontAssetPath = resDir + "/Fonts & Materials/MSYH SDF.asset";
+                const string fontAssetPath = resDir + "/Fonts & Materials/NotoSansSC SDF.asset";
+                const string projectFontPath = "Assets/Fonts/NotoSansSC-Regular.ttf";
 
-                Directory.CreateDirectory(fontDir);
-                Directory.CreateDirectory(resDir);
                 Directory.CreateDirectory(resDir + "/Fonts & Materials");
 
                 var settings = AssetDatabase.LoadAssetAtPath<TMPro.TMP_Settings>(settingsPath);
@@ -179,23 +177,21 @@ namespace GameNet.EditorTools
                 var fontAsset = AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(fontAssetPath);
                 if (fontAsset == null)
                 {
-                    // 优先使用项目内导入的字体文件资产（保证运行时字形可动态生成）。
-                    Font projectFont = AssetDatabase.LoadAssetAtPath<Font>(fontDir + "/msyh.ttf")
-                                       ?? AssetDatabase.LoadAssetAtPath<Font>(fontDir + "/simhei.ttf");
-                    Font osFont = projectFont != null ? projectFont : Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 64);
-                    if (osFont == null)
+                    // 使用仓库内自带的 Noto Sans SC（OFL 开源），保证任何机器上都能渲染中文。
+                    Font projectFont = AssetDatabase.LoadAssetAtPath<Font>(projectFontPath);
+                    if (projectFont == null)
                     {
-                        Debug.LogError("找不到中文字体");
+                        Debug.LogError($"找不到项目字体：{projectFontPath}");
                         EditorApplication.Exit(1);
                         return;
                     }
 
-                    fontAsset = TMPro.TMP_FontAsset.CreateFontAsset(osFont, 90, 9, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic);
-                    fontAsset.name = "MSYH SDF";
+                    fontAsset = TMPro.TMP_FontAsset.CreateFontAsset(projectFont, 90, 9, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic);
+                    fontAsset.name = "NotoSansSC SDF";
                     AssetDatabase.CreateAsset(fontAsset, fontAssetPath);
                     if (fontAsset.material != null)
                     {
-                        fontAsset.material.name = "MSYH SDF Material";
+                        fontAsset.material.name = "NotoSansSC SDF Material";
                         AssetDatabase.AddObjectToAsset(fontAsset.material, fontAsset);
                     }
                     if (fontAsset.atlasTextures != null)
@@ -215,7 +211,7 @@ namespace GameNet.EditorTools
                 TMPro.TMP_Settings.defaultFontAsset = fontAsset;
                 EditorUtility.SetDirty(settings);
                 AssetDatabase.SaveAssets();
-                Debug.Log("TMP Settings 默认字体已设置为 MSYH SDF");
+                Debug.Log("TMP Settings 默认字体已设置为 NotoSansSC SDF");
                 EditorApplication.Exit(0);
             }
             catch (Exception e)
