@@ -258,6 +258,16 @@ namespace GameNet
             }
             catch (RelayServiceException e)
             {
+                // 当前网络/区域对 Relay 返回 451 时，自动降级到 DirectIP，
+                // 保证本机和局域网仍能继续测试；Relay 服务恢复后可在 Inspector 切回 Relay。
+                if (e.Reason == RelayExceptionReason.UnavailableForLegalReasons)
+                {
+                    Debug.LogWarning("[Net][Host] Relay 返回 451，自动切换 DirectIP 继续创建本地/局域网房间。");
+                    connectMode = ConnectMode.DirectIP;
+                    await StartHostAsync();
+                    return;
+                }
+
                 SetError($"Relay 创建房间失败（Reason={e.Reason}）：{e.Message}");
             }
             catch (ServicesInitializationException e)
