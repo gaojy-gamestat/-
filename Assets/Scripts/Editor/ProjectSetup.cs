@@ -228,6 +228,9 @@ namespace GameNet.EditorTools
             }
 
             var safeUi = canvas.GetComponent<SafeMainMenuRuntime>() ?? canvas.AddComponent<SafeMainMenuRuntime>();
+            var safeUiSerialized = new SerializedObject(safeUi);
+            safeUiSerialized.FindProperty("startHidden").boolValue = true;
+            safeUiSerialized.ApplyModifiedPropertiesWithoutUndo();
             WireClick(createButton, safeUi.BeginHostFromExternalButton);
             WireClick(joinButton, safeUi.OpenJoinFromExternalButton);
 

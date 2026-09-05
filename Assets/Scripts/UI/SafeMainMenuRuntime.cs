@@ -10,6 +10,9 @@ using UnityEngine.UI;
 /// </summary>
 public sealed class SafeMainMenuRuntime : MonoBehaviour
 {
+    [SerializeField]
+    private bool startHidden;
+
     private Canvas m_Canvas;
     private Text m_StatusText;
     private Text m_RoomCodeText;
@@ -28,6 +31,10 @@ public sealed class SafeMainMenuRuntime : MonoBehaviour
     {
         CreateRuntimeCamera();
         BuildUi();
+        if (startHidden && m_Canvas != null)
+        {
+            m_Canvas.enabled = false;
+        }
         TryBindNetworkEvents();
         RefreshUi();
     }
@@ -130,11 +137,13 @@ public sealed class SafeMainMenuRuntime : MonoBehaviour
     // 这样旧界面也能复用同一套安全联机 UI 和网络流程。
     public void BeginHostFromExternalButton()
     {
+        ShowRuntimeUi();
         OnClickHost();
     }
 
     public void OpenJoinFromExternalButton()
     {
+        ShowRuntimeUi();
         if (m_StatusText != null)
         {
             m_StatusText.text = "请输入主机 IP 或 Relay 房间码";
@@ -144,6 +153,14 @@ public sealed class SafeMainMenuRuntime : MonoBehaviour
         {
             m_RoomCodeInput.Select();
             m_RoomCodeInput.ActivateInputField();
+        }
+    }
+
+    private void ShowRuntimeUi()
+    {
+        if (m_Canvas != null)
+        {
+            m_Canvas.enabled = true;
         }
     }
 
