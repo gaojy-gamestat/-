@@ -329,7 +329,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e3f10a2b4c5d4e6f8a9b0c1d2e3f4a5b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  connectMode: 1
+  connectMode: 0
   directAddress: 127.0.0.1
   directPort: 7777
   relayRegion:
