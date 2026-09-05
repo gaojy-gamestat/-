@@ -10,6 +10,9 @@ using UnityEngine.UI;
 /// </summary>
 public class MainMenuUIController : MonoBehaviour
 {
+    [Header("运行时 UI")]
+    public Canvas MainMenuCanvas;
+
     [Header("主菜单按钮")]
     public Button Btn_CreateGame;
     public Button Btn_JoinGame;
@@ -33,6 +36,12 @@ public class MainMenuUIController : MonoBehaviour
 
     private void Awake()
     {
+        // 编辑器中保持 Canvas 禁用以规避 Unity 2022.3.62f3 的旧 UGUI 原生崩溃；进入 Play 后恢复显示。
+        if (Application.isPlaying && MainMenuCanvas != null)
+        {
+            MainMenuCanvas.enabled = true;
+        }
+
         // 默认：两个面板都隐藏。
         if (Panel_CreateRoom != null) Panel_CreateRoom.SetActive(false);
         if (Panel_JoinRoom != null) Panel_JoinRoom.SetActive(false);
@@ -212,7 +221,7 @@ public class MainMenuUIController : MonoBehaviour
         if (Btn_StartHost != null)
         {
             bool idle = Net.State == RoomState.Idle || Net.State == RoomState.Error;
-            Btn_StartHost.interactable = isHost && idle;
+            Btn_StartHost.interactable = idle;
         }
 
         if (Btn_StartGame != null)

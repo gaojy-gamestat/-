@@ -20,7 +20,7 @@ namespace GameNet.EditorTools
     /// 一次性工程落地脚本（batchmode -executeMethod 执行）：
     /// 1. TMP 字体资产（中文可渲染）；
     /// 2. Player 网络预设（NetworkObject + NetworkTransform + CharacterController）；
-    /// 3. MainMenu 场景：基于现有 SampleScene 副本，新增 Panel_CreateRoom / Panel_JoinRoom / NetworkManager 并完成 UI 拖线；
+    /// 3. MainMenu 场景：旧版项目可自动生成 UI；若已存在 MainMenuRuntime，则保留运行时安全 UI；
     /// 4. GamePlay 联网场景；
     /// 5. Build Settings 场景注册。
     /// </summary>
@@ -123,7 +123,9 @@ namespace GameNet.EditorTools
             var settings = TMP_Settings.instance;
             if (settings != null)
             {
-                TMP_Settings.defaultFontAsset = fontAsset;
+                var serializedSettings = new SerializedObject(settings);
+                serializedSettings.FindProperty("m_defaultFontAsset").objectReferenceValue = fontAsset;
+                serializedSettings.ApplyModifiedPropertiesWithoutUndo();
             }
         }
 
@@ -202,6 +204,16 @@ namespace GameNet.EditorTools
             }
 
             var scene = EditorSceneManager.OpenScene(MainMenuScenePath, OpenSceneMode.Single);
+
+            // 当前工程的 MainMenu 使用 SafeMainMenuRuntime 动态创建轻量 UI，
+            // 这是为 Unity 2022.3.62f3 规避旧 UGUI 反序列化崩溃的稳定入口。
+            // 旧版自动搭建逻辑不能覆盖它，否则会把工程重新写回易崩的复杂 Canvas。
+            if (FindByName(scene, "MainMenuRuntime") != null)
+            {
+                Debug.Log("ProjectSetup: 检测到 MainMenuRuntime，保留当前安全主菜单，跳过旧版 UGUI 重建。");
+                return;
+            }
+
             ApplyFontToAllTexts(scene, font);
 
             var canvas = FindByName(scene, "Panel");

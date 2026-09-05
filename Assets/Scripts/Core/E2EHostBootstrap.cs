@@ -36,6 +36,10 @@ public class E2EHostPlayerRunner : MonoBehaviour
     private bool m_MovedFar;
     private bool m_Rotated;
     private bool m_SyncSampled;
+    private float m_ClientSampleTimer;
+    private Vector3 m_LastClientPos;
+    private bool m_HasClientSample;
+    private bool m_ClientMovementVerified;
     private const float Timeout = 300f;
     private float m_WaitLogTimer;
 
@@ -125,6 +129,9 @@ public class E2EHostPlayerRunner : MonoBehaviour
             return;
         }
 
+        // 双向同步采样：验证 Client 输入（ServerRpc）在 Host 权威执行后，Client 玩家确实移动。
+        SampleClientMovement();
+
         switch (m_Phase)
         {
             case 10:
@@ -204,6 +211,54 @@ public class E2EHostPlayerRunner : MonoBehaviour
                 break;
             }
         }
+    }
+
+    private void SampleClientMovement()
+    {
+        var nm = NetworkManager.Singleton;
+        if (nm == null || !nm.IsHost ||
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != GameNetworkManager.GamePlaySceneName)
+        {
+            return;
+        }
+
+        NetworkObject clientPlayer = null;
+        foreach (var pair in nm.ConnectedClients)
+        {
+            if (pair.Key == nm.LocalClientId)
+            {
+                continue;
+            }
+
+            clientPlayer = pair.Value.PlayerObject;
+            if (clientPlayer != null)
+            {
+                break;
+            }
+        }
+
+        if (clientPlayer == null)
+        {
+            return;
+        }
+
+        m_ClientSampleTimer += Time.unscaledDeltaTime;
+        if (m_ClientSampleTimer < 0.5f)
+        {
+            return;
+        }
+
+        m_ClientSampleTimer = 0f;
+        Vector3 currentPos = clientPlayer.transform.position;
+        if (!m_ClientMovementVerified && m_HasClientSample &&
+            (currentPos - m_LastClientPos).sqrMagnitude > 0.0004f)
+        {
+            m_ClientMovementVerified = true;
+            Log($"HOST_CLIENT_MOVE_VERIFIED Client 玩家位置从 {m_LastClientPos} 变化到 {currentPos}");
+        }
+
+        m_LastClientPos = currentPos;
+        m_HasClientSample = true;
     }
 
     private void DriveSyncTraffic()

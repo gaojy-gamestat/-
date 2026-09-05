@@ -71,6 +71,7 @@ public class E2EClientRunner : MonoBehaviour
     private bool m_RotSyncVerified;
     private bool m_SaveProtectionTested;
     private float m_RotSampleTimer;
+    private float m_ClientDriveTimer;
     private float m_RotBaseline = -1f;
     private float m_PhaseTimer;
     private const float Timeout = 150f;
@@ -199,6 +200,13 @@ public class E2EClientRunner : MonoBehaviour
             Log(allowed ? "SAVE_PROTECTION_FAIL Client 居然写入了存档！" : "SAVE_PROTECTED Client 写存档已被拦截");
             var files = SaveSystem.LoadAllSaveFiles();
             Log(files.Count == 0 ? "SAVE_LIST_PROTECTED Client 读取存档列表已被拦截（返回空）" : "SAVE_LIST_FAIL Client 读取到存档列表");
+        }
+
+        // Client 侧驱动自己的玩家（Owner 输入 → ServerRpc → Host 权威执行），供 Host 端验证双向同步。
+        if (m_ClientDriveTimer < 4f)
+        {
+            m_ClientDriveTimer += Time.unscaledDeltaTime;
+            own.GetComponent<PlayerController>().TestClientMove(Vector2.up, 0f);
         }
 
         if (!m_PosSyncVerified)

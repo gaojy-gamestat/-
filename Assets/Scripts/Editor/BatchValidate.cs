@@ -55,7 +55,13 @@ namespace GameNet.EditorTools
             Check(nm != null, "NetworkManager 组件存在");
             Check(nm != null && nm.GetComponent<UnityTransport>() != null, "UnityTransport 组件存在");
             Check(nm != null && nm.GetComponent<GameNetworkManager>() != null, "GameNetworkManager 组件存在");
-            Check(nm != null && nm.GetComponent<MainMenuUIController>() != null, "MainMenuUIController 组件存在");
+
+            // MainMenu 现在默认使用 SafeMainMenuRuntime 在运行时创建 UI，
+            // 旧版 MainMenuUIController 仍保留给已有场景/测试兼容。
+            var legacyUi = netGo != null ? netGo.GetComponent<MainMenuUIController>() : null;
+            var runtimeUi = GameObject.Find("MainMenuRuntime")?.GetComponent<SafeMainMenuRuntime>();
+            bool hasSupportedMenuUi = legacyUi != null || runtimeUi != null;
+            Check(hasSupportedMenuUi, "MainMenu UI 控制器存在（旧版或运行时安全 UI）");
 
             Check(nm != null && nm.NetworkConfig.PlayerPrefab != null, $"NetworkConfig.PlayerPrefab = {(nm != null && nm.NetworkConfig.PlayerPrefab != null ? nm.NetworkConfig.PlayerPrefab.name : "null")}");
             Check(nm != null && nm.NetworkConfig.Prefabs.NetworkPrefabsLists.Count > 0, "NetworkPrefabsList 已注册");
@@ -70,23 +76,30 @@ namespace GameNet.EditorTools
             Check(playerObj != null && playerObj.GetComponent<PlayerController>() != null, "Player Prefab 带 PlayerController");
             Check(playerObj != null && playerObj.GetComponent<PlayerIdentity>() != null, "Player Prefab 带 PlayerIdentity");
 
-            var ui = netGo != null ? netGo.GetComponent<MainMenuUIController>() : null;
-            Check(ui != null && ui.Btn_CreateGame != null, "UI 引用 Btn_CreateGame");
-            Check(ui != null && ui.Btn_JoinGame != null, "UI 引用 Btn_JoinGame");
-            Check(ui != null && ui.Panel_CreateRoom != null && !ui.Panel_CreateRoom.activeSelf, "Panel_CreateRoom 存在且默认隐藏");
-            Check(ui != null && ui.Panel_JoinRoom != null && !ui.Panel_JoinRoom.activeSelf, "Panel_JoinRoom 存在且默认隐藏");
-            Check(ui != null && ui.Txt_RoomCode != null, "UI 引用 Txt_RoomCode");
-            Check(ui != null && ui.RoomStatus != null, "UI 引用 RoomStatus");
-            Check(ui != null && ui.PlayerCount != null, "UI 引用 PlayerCount");
-            Check(ui != null && ui.Btn_StartHost != null, "UI 引用 Btn_StartHost");
-            Check(ui != null && ui.Input_RoomCode != null, "UI 引用 Input_RoomCode");
-            Check(ui != null && ui.ErrorText != null, "UI 引用 ErrorText");
-            Check(ui != null && ui.Btn_JoinClient != null, "UI 引用 Btn_JoinClient");
+            if (legacyUi != null)
+            {
+                Check(legacyUi.Btn_CreateGame != null, "UI 引用 Btn_CreateGame");
+                Check(legacyUi.Btn_JoinGame != null, "UI 引用 Btn_JoinGame");
+                Check(legacyUi.Panel_CreateRoom != null && !legacyUi.Panel_CreateRoom.activeSelf, "Panel_CreateRoom 存在且默认隐藏");
+                Check(legacyUi.Panel_JoinRoom != null && !legacyUi.Panel_JoinRoom.activeSelf, "Panel_JoinRoom 存在且默认隐藏");
+                Check(legacyUi.Txt_RoomCode != null, "UI 引用 Txt_RoomCode");
+                Check(legacyUi.RoomStatus != null, "UI 引用 RoomStatus");
+                Check(legacyUi.PlayerCount != null, "UI 引用 PlayerCount");
+                Check(legacyUi.Btn_StartHost != null, "UI 引用 Btn_StartHost");
+                Check(legacyUi.Input_RoomCode != null, "UI 引用 Input_RoomCode");
+                Check(legacyUi.ErrorText != null, "UI 引用 ErrorText");
+                Check(legacyUi.Btn_JoinClient != null, "UI 引用 Btn_JoinClient");
 
-            Check(HasClickCall(ui.Btn_CreateGame, "OnClickCreateGame"), "创建游戏按钮 OnClick → OnClickCreateGame");
-            Check(HasClickCall(ui.Btn_JoinGame, "OnClickJoinGame"), "加入游戏按钮 OnClick → OnClickJoinGame");
-            Check(HasClickCall(ui.Btn_StartHost, "OnClickStartHost"), "开始游戏按钮 OnClick → OnClickStartHost");
-            Check(HasClickCall(ui.Btn_JoinClient, "OnClickJoinClient"), "加入按钮 OnClick → OnClickJoinClient");
+                Check(HasClickCall(legacyUi.Btn_CreateGame, "OnClickCreateGame"), "创建游戏按钮 OnClick → OnClickCreateGame");
+                Check(HasClickCall(legacyUi.Btn_JoinGame, "OnClickJoinGame"), "加入游戏按钮 OnClick → OnClickJoinGame");
+                Check(HasClickCall(legacyUi.Btn_StartHost, "OnClickStartHost"), "开始游戏按钮 OnClick → OnClickStartHost");
+                Check(HasClickCall(legacyUi.Btn_JoinClient, "OnClickJoinClient"), "加入按钮 OnClick → OnClickJoinClient");
+            }
+            else
+            {
+                Check(runtimeUi != null, "SafeMainMenuRuntime 运行时 UI 存在");
+                Debug.Log("[Validate] 检测到运行时安全 UI，跳过旧版序列化按钮引用检查");
+            }
 
             // ---- GamePlay ----
             var play = EditorSceneManager.OpenScene("Assets/Scenes/GamePlay.unity", OpenSceneMode.Single);
@@ -208,7 +221,9 @@ namespace GameNet.EditorTools
                     Debug.Log("字体资产已创建：" + fontAssetPath);
                 }
 
-                TMPro.TMP_Settings.defaultFontAsset = fontAsset;
+                var serializedSettings = new SerializedObject(settings);
+                serializedSettings.FindProperty("m_defaultFontAsset").objectReferenceValue = fontAsset;
+                serializedSettings.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(settings);
                 AssetDatabase.SaveAssets();
                 Debug.Log("TMP Settings 默认字体已设置为 NotoSansSC SDF");

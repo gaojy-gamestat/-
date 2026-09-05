@@ -413,6 +413,7 @@ namespace GameNet
                 SetState(RoomState.Error);
                 m_LastError = "与 Host 的连接已断开（Host 退出或网络中断）。";
                 OnDisconnectMessage?.Invoke(m_LastError);
+                m_PendingDisconnectRecovery = true;
             }
 
             NotifyStateChanged();
@@ -521,8 +522,23 @@ namespace GameNet
             OnRoomStateChanged?.Invoke();
         }
 
+        private bool m_PendingDisconnectRecovery;
+
         private void Update()
         {
+            // 断线恢复：Client 与 Host 失去连接后，销毁跨场景存续的网络对象并回到干净的主菜单。
+            // 注意：这不是绕过 NGO 场景同步 —— 游戏开始的 GamePlay 加载始终由 Host 的 NetworkSceneManager 驱动；
+            // 这里只是断线后的本地回退。Shutdown 不能在断线回调内直接调用，因此延迟到 Update 执行。
+            if (m_PendingDisconnectRecovery)
+            {
+                m_PendingDisconnectRecovery = false;
+                Debug.Log("[Net][Client] 断线恢复：关闭网络并返回主菜单。");
+                NetworkManager.Singleton.Shutdown();
+                Destroy(gameObject);
+                UnityEngine.SceneManagement.SceneManager.LoadScene(MainMenuSceneName);
+                return;
+            }
+
             // Client 握手期间 StartClient 成功但一直连不上时给出超时反馈。
             if (m_State == RoomState.WaitingForPlayer && NetworkManager.Singleton != null &&
                 !NetworkManager.Singleton.IsHost &&

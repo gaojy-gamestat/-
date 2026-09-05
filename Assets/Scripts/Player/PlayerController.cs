@@ -77,6 +77,15 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    /// <summary>仅测试用：Client(Owner) 侧驱动（走 ServerRpc 提交给 Host 权威执行，与真实输入同路径）。</summary>
+    public void TestClientMove(Vector2 input, float rotY)
+    {
+        if (IsOwner && !IsServer)
+        {
+            MoveServerRpc(input, rotY);
+        }
+    }
+
     /// <summary>重置垂直速度（场景切换传送玩家时调用，防止残留下坠速度隧穿地面）。</summary>
     public void ResetVerticalVelocity()
     {
