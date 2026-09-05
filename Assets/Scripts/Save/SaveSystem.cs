@@ -19,6 +19,18 @@ public static class SaveSystem
 
     private static string SaveDirectory => Path.Combine(Application.persistentDataPath, SaveFolderName);
 
+    public static GameSaveData CurrentSession { get; private set; }
+
+    public static void SetCurrentSession(GameSaveData data)
+    {
+        if (!HasSavePermission("SetCurrentSession"))
+        {
+            return;
+        }
+
+        CurrentSession = data;
+    }
+
     /// <summary>
     /// 硬性权限保护：只有 Host（或未联机时的本地开发模式）可以读写存档。
     /// Client 调用会直接拦截并留下明确日志。

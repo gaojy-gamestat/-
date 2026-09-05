@@ -227,12 +227,25 @@ namespace GameNet.EditorTools
                 throw new Exception("SampleScene 缺少 Canvas、创建游戏或加入游戏按钮！");
             }
 
-            var safeUi = canvas.GetComponent<SafeMainMenuRuntime>() ?? canvas.AddComponent<SafeMainMenuRuntime>();
-            var safeUiSerialized = new SerializedObject(safeUi);
-            safeUiSerialized.FindProperty("startHidden").boolValue = true;
-            safeUiSerialized.ApplyModifiedPropertiesWithoutUndo();
-            WireClick(createButton, safeUi.BeginHostFromExternalButton);
-            WireClick(joinButton, safeUi.OpenJoinFromExternalButton);
+            var oldSafeUi = canvas.GetComponent<SafeMainMenuRuntime>();
+            if (oldSafeUi != null)
+            {
+                UnityEngine.Object.DestroyImmediate(oldSafeUi);
+            }
+
+            var menuUi = canvas.GetComponent<SampleSceneMenuRuntime>() ?? canvas.AddComponent<SampleSceneMenuRuntime>();
+            var scaler = canvas.GetComponent<CanvasScaler>();
+            if (scaler != null)
+            {
+                // 旧场景的 CanvasScaler 在 Unity 2022.3.62f3 上可能触发原生 UI 崩溃；
+                // 原界面保留，运行时弹窗使用独立 ScreenSpaceOverlay Canvas。
+                scaler.enabled = false;
+            }
+
+            ResetPersistentCalls(createButton);
+            ResetPersistentCalls(joinButton);
+            WireClick(createButton, menuUi.OpenCreateFromOriginalButton);
+            WireClick(joinButton, menuUi.OpenJoinFromOriginalButton);
 
             var netRoot = FindByName(scene, "NetworkManager_GO");
             if (netRoot == null)
@@ -256,7 +269,7 @@ namespace GameNet.EditorTools
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, SampleScenePath);
-            Debug.Log("ProjectSetup: SampleScene 的创建/加入按钮已绑定 SafeMainMenuRuntime，并已加入 NetworkManager_GO。");
+            Debug.Log("ProjectSetup: SampleScene 原界面前两个按钮已绑定存档创建/房间加入流程，并已加入 NetworkManager_GO。");
         }
 
         // ------------------------------------------------------------------
@@ -427,6 +440,14 @@ namespace GameNet.EditorTools
             }
 
             UnityEventTools.AddPersistentListener(button.onClick, action);
+        }
+
+        private static void ResetPersistentCalls(Button button)
+        {
+            for (int i = button.onClick.GetPersistentEventCount() - 1; i >= 0; i--)
+            {
+                UnityEventTools.RemovePersistentListener(button.onClick, i);
+            }
         }
 
         private static void ConfigureNetworkManager(NetworkManager networkManager, UnityTransport transport, GameObject playerPrefab, NetworkPrefabsList prefabsList)

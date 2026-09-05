@@ -105,14 +105,14 @@ namespace GameNet.EditorTools
             var sample = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
             Check(sample.IsValid(), "SampleScene 场景加载");
             var sampleCanvas = GameObject.Find("Canvas");
-            var sampleUi = sampleCanvas != null ? sampleCanvas.GetComponent<SafeMainMenuRuntime>() : null;
+            var sampleUi = sampleCanvas != null ? sampleCanvas.GetComponent<SampleSceneMenuRuntime>() : null;
             var sampleCreate = GameObject.Find("创建游戏")?.GetComponent<Button>();
             var sampleJoin = GameObject.Find("加入游戏")?.GetComponent<Button>();
             var sampleNetGo = GameObject.Find("NetworkManager_GO");
             var sampleNm = sampleNetGo != null ? sampleNetGo.GetComponent<NetworkManager>() : null;
-            Check(sampleUi != null, "SampleScene SafeMainMenuRuntime 存在");
-            Check(sampleCreate != null && HasClickCall(sampleCreate, "BeginHostFromExternalButton"), "SampleScene 创建游戏按钮已绑定联机 Host");
-            Check(sampleJoin != null && HasClickCall(sampleJoin, "OpenJoinFromExternalButton"), "SampleScene 加入游戏按钮已绑定联机入口");
+            Check(sampleUi != null, "SampleScene 存档/联机 UI 控制器存在");
+            Check(sampleCreate != null && HasClickCall(sampleCreate, "OpenCreateFromOriginalButton"), "SampleScene 创建游戏按钮已绑定存档选择");
+            Check(sampleJoin != null && HasClickCall(sampleJoin, "OpenJoinFromOriginalButton"), "SampleScene 加入游戏按钮已绑定房间码入口");
             Check(sampleNm != null && sampleNm.GetComponent<UnityTransport>() != null && sampleNm.GetComponent<GameNetworkManager>() != null, "SampleScene NetworkManager/Transport/GameNetworkManager 完整");
 
             // ---- GamePlay ----

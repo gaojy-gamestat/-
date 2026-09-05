@@ -310,8 +310,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1266665401}
-        m_TargetAssemblyTypeName: SafeMainMenuRuntime, Assembly-CSharp
-        m_MethodName: BeginHostFromExternalButton
+        m_TargetAssemblyTypeName: SampleSceneMenuRuntime, Assembly-CSharp
+        m_MethodName: OpenCreateFromOriginalButton
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -831,8 +831,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1266665401}
-        m_TargetAssemblyTypeName: SafeMainMenuRuntime, Assembly-CSharp
-        m_MethodName: OpenJoinFromExternalButton
+        m_TargetAssemblyTypeName: SampleSceneMenuRuntime, Assembly-CSharp
+        m_MethodName: OpenJoinFromOriginalButton
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -924,7 +924,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1266665396}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
@@ -993,10 +993,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1266665396}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f6a4a0c9b1e84d6d9a2f0e1c3b4d5e6f, type: 3}
+  m_Script: {fileID: 11500000, guid: c7d6e5f4a3b241d0987654321fedcba9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startHidden: 1
 --- !u!1 &1302395405
 GameObject:
   m_ObjectHideFlags: 0
