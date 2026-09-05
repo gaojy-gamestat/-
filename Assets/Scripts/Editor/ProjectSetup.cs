@@ -11,6 +11,7 @@ using UnityEditor;
 using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TextCore.LowLevel;
 using UnityEngine.UI;
 
@@ -219,7 +220,15 @@ namespace GameNet.EditorTools
                 throw new Exception("SampleScene 场景加载失败！");
             }
 
-            var canvas = FindByName(scene, "Canvas");
+            // 原 Canvas 的 TMP/UI 数据已经损坏，Unity 在编辑器绘制 Canvas batch 时会原生崩溃。
+            // 保留场景里的关卡/相机/网络对象，重建一个纯 UGUI 主界面，避免继续加载坏 UI。
+            var oldCanvas = FindByName(scene, "Canvas");
+            if (oldCanvas != null)
+            {
+                UnityEngine.Object.DestroyImmediate(oldCanvas);
+            }
+
+            var canvas = CreateStableSampleSceneCanvas(scene);
             var createButton = FindByName(scene, "创建游戏")?.GetComponent<Button>();
             var joinButton = FindByName(scene, "加入游戏")?.GetComponent<Button>();
             if (canvas == null || createButton == null || joinButton == null)
@@ -270,6 +279,79 @@ namespace GameNet.EditorTools
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, SampleScenePath);
             Debug.Log("ProjectSetup: SampleScene 原界面前两个按钮已绑定存档创建/房间加入流程，并已加入 NetworkManager_GO。");
+        }
+
+        private static GameObject CreateStableSampleSceneCanvas(Scene scene)
+        {
+            var canvasObject = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
+            EditorSceneManager.MoveGameObjectToScene(canvasObject, scene);
+
+            var canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.pixelPerfect = false;
+            canvas.sortingOrder = 0;
+
+            var background = CreateLegacyImage("Background", canvasObject.transform, new Vector2(1180f, 760f), new Vector2(0.5f, 0.5f), new Color(0.015f, 0.02f, 0.035f, 1f));
+            var title = CreateLegacyText("Title", background.transform, "联机大厅", 46, Color.white, new Vector2(0f, 280f), new Vector2(900f, 70f), TextAnchor.MiddleCenter);
+            title.fontStyle = FontStyle.Bold;
+            CreateLegacyText("Subtitle", background.transform, "NGO + Relay / DirectIP", 18, new Color(0.55f, 0.68f, 0.9f, 1f), new Vector2(0f, 230f), new Vector2(900f, 35f), TextAnchor.MiddleCenter);
+
+            CreateStableButton("创建游戏", "创建游戏", background.transform, new Vector2(0f, 130f));
+            CreateStableButton("加入游戏", "加入游戏", background.transform, new Vector2(0f, 50f));
+            CreateStableButton("设置", "设置", background.transform, new Vector2(0f, -30f));
+            CreateStableButton("制作人员", "制作人员", background.transform, new Vector2(0f, -110f));
+            CreateStableButton("退出", "退出", background.transform, new Vector2(0f, -190f));
+            return canvasObject;
+        }
+
+        private static Image CreateLegacyImage(string name, Transform parent, Vector2 size, Vector2 anchor, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.sizeDelta = size;
+            rect.anchoredPosition = Vector2.zero;
+            go.GetComponent<Image>().color = color;
+            return go.GetComponent<Image>();
+        }
+
+        private static Text CreateLegacyText(string name, Transform parent, string value, int size, Color color, Vector2 position, Vector2 dimensions, TextAnchor alignment)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Text));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = dimensions;
+            rect.anchoredPosition = position;
+            var text = go.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.text = value;
+            text.fontSize = size;
+            text.color = color;
+            text.alignment = alignment;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            return text;
+        }
+
+        private static Button CreateStableButton(string name, string label, Transform parent, Vector2 position)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(560f, 62f);
+            rect.anchoredPosition = position;
+            var image = go.GetComponent<Image>();
+            image.color = new Color(0.1f, 0.3f, 0.68f, 1f);
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+            CreateLegacyText("Label", go.transform, label, 25, Color.white, Vector2.zero, new Vector2(540f, 58f), TextAnchor.MiddleCenter);
+            return button;
         }
 
         // ------------------------------------------------------------------
