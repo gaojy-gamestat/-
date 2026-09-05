@@ -42,7 +42,7 @@ namespace GameNet.EditorTools
 
             // ---- Build Settings ----
             var scenes = EditorBuildSettings.scenes.Select(s => System.IO.Path.GetFileNameWithoutExtension(s.path)).ToArray();
-            Check(scenes.Contains("MainMenu") && scenes.Contains("GamePlay"), $"BuildSettings 场景注册：[{string.Join(", ", scenes)}]");
+            Check(scenes.Contains("MainMenu") && scenes.Contains("GamePlay") && scenes.Contains("SampleScene"), $"BuildSettings 场景注册：[{string.Join(", ", scenes)}]");
 
             // ---- MainMenu ----
             var menu = EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity", OpenSceneMode.Single);
@@ -100,6 +100,20 @@ namespace GameNet.EditorTools
                 Check(runtimeUi != null, "SafeMainMenuRuntime 运行时 UI 存在");
                 Debug.Log("[Validate] 检测到运行时安全 UI，跳过旧版序列化按钮引用检查");
             }
+
+            // ---- SampleScene 原始界面 ----
+            var sample = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+            Check(sample.IsValid(), "SampleScene 场景加载");
+            var sampleCanvas = GameObject.Find("Canvas");
+            var sampleUi = sampleCanvas != null ? sampleCanvas.GetComponent<SafeMainMenuRuntime>() : null;
+            var sampleCreate = GameObject.Find("创建游戏")?.GetComponent<Button>();
+            var sampleJoin = GameObject.Find("加入游戏")?.GetComponent<Button>();
+            var sampleNetGo = GameObject.Find("NetworkManager_GO");
+            var sampleNm = sampleNetGo != null ? sampleNetGo.GetComponent<NetworkManager>() : null;
+            Check(sampleUi != null, "SampleScene SafeMainMenuRuntime 存在");
+            Check(sampleCreate != null && HasClickCall(sampleCreate, "BeginHostFromExternalButton"), "SampleScene 创建游戏按钮已绑定联机 Host");
+            Check(sampleJoin != null && HasClickCall(sampleJoin, "OpenJoinFromExternalButton"), "SampleScene 加入游戏按钮已绑定联机入口");
+            Check(sampleNm != null && sampleNm.GetComponent<UnityTransport>() != null && sampleNm.GetComponent<GameNetworkManager>() != null, "SampleScene NetworkManager/Transport/GameNetworkManager 完整");
 
             // ---- GamePlay ----
             var play = EditorSceneManager.OpenScene("Assets/Scenes/GamePlay.unity", OpenSceneMode.Single);

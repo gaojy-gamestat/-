@@ -126,6 +126,27 @@ public sealed class SafeMainMenuRuntime : MonoBehaviour
         }
     }
 
+    // SampleScene 原有的两个主菜单按钮使用这两个公开入口，
+    // 这样旧界面也能复用同一套安全联机 UI 和网络流程。
+    public void BeginHostFromExternalButton()
+    {
+        OnClickHost();
+    }
+
+    public void OpenJoinFromExternalButton()
+    {
+        if (m_StatusText != null)
+        {
+            m_StatusText.text = "请输入主机 IP 或 Relay 房间码";
+        }
+
+        if (m_RoomCodeInput != null)
+        {
+            m_RoomCodeInput.Select();
+            m_RoomCodeInput.ActivateInputField();
+        }
+    }
+
     private IEnumerator StartHostRoutine()
     {
         m_RequestInFlight = true;

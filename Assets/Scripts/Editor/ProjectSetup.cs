@@ -28,6 +28,7 @@ namespace GameNet.EditorTools
     {
         private const string MainMenuScenePath = "Assets/Scenes/MainMenu.unity";
         private const string GamePlayScenePath = "Assets/Scenes/GamePlay.unity";
+        private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
         private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
         private const string NetworkPrefabsPath = "Assets/Prefabs/NetworkPrefabsList.asset";
         private const string FontAssetPath = "Assets/TextMesh Pro/Fonts/MSYH SDF.asset";
@@ -39,11 +40,28 @@ namespace GameNet.EditorTools
             var font = EnsureCjkFontAsset();
             CreatePlayerPrefab();
             SetupMainMenuScene(font);
+            SetupSampleSceneNetworkEntry();
             CreateGameplayScene(font);
             ConfigureBuildSettings();
             AssetDatabase.SaveAssets();
             Debug.Log("== ProjectSetup 完成 ==");
             EditorApplication.Exit(0);
+        }
+
+        public static void SetupSampleSceneOnly()
+        {
+            Debug.Log("== SampleScene 联机入口配置开始 ==");
+            SetupSampleSceneNetworkEntry();
+            ConfigureBuildSettings();
+            AssetDatabase.SaveAssets();
+            Debug.Log("== SampleScene 联机入口配置完成 ==");
+            EditorApplication.Exit(0);
+        }
+
+        public static void OpenSampleScene()
+        {
+            EditorSceneManager.OpenScene(SampleScenePath, OpenSceneMode.Single);
+            Debug.Log("ProjectSetup: 已打开 SampleScene，准备从原界面测试联机按钮。");
         }
 
         // ------------------------------------------------------------------
@@ -188,6 +206,54 @@ namespace GameNet.EditorTools
             PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefabPath);
             Debug.Log($"ProjectSetup: 已创建 Player 预设 {PlayerPrefabPath}");
             UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        // ------------------------------------------------------------------
+        // 原始 SampleScene 兼容入口
+        // ------------------------------------------------------------------
+        private static void SetupSampleSceneNetworkEntry()
+        {
+            var scene = EditorSceneManager.OpenScene(SampleScenePath, OpenSceneMode.Single);
+            if (!scene.IsValid())
+            {
+                throw new Exception("SampleScene 场景加载失败！");
+            }
+
+            var canvas = FindByName(scene, "Canvas");
+            var createButton = FindByName(scene, "创建游戏")?.GetComponent<Button>();
+            var joinButton = FindByName(scene, "加入游戏")?.GetComponent<Button>();
+            if (canvas == null || createButton == null || joinButton == null)
+            {
+                throw new Exception("SampleScene 缺少 Canvas、创建游戏或加入游戏按钮！");
+            }
+
+            var safeUi = canvas.GetComponent<SafeMainMenuRuntime>() ?? canvas.AddComponent<SafeMainMenuRuntime>();
+            WireClick(createButton, safeUi.BeginHostFromExternalButton);
+            WireClick(joinButton, safeUi.OpenJoinFromExternalButton);
+
+            var netRoot = FindByName(scene, "NetworkManager_GO");
+            if (netRoot == null)
+            {
+                netRoot = new GameObject("NetworkManager_GO");
+            }
+
+            var networkManager = netRoot.GetComponent<NetworkManager>() ?? netRoot.AddComponent<NetworkManager>();
+            var transport = netRoot.GetComponent<UnityTransport>() ?? netRoot.AddComponent<UnityTransport>();
+            var gameNet = netRoot.GetComponent<GameNetworkManager>() ?? netRoot.AddComponent<GameNetworkManager>();
+
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
+            var prefabsList = AssetDatabase.LoadAssetAtPath<NetworkPrefabsList>(NetworkPrefabsPath);
+            if (playerPrefab == null || prefabsList == null)
+            {
+                throw new Exception("SampleScene 联机入口缺少 Player 或 NetworkPrefabsList！");
+            }
+
+            transport.SetConnectionData("127.0.0.1", 7777, "0.0.0.0");
+            ConfigureNetworkManager(networkManager, transport, playerPrefab, prefabsList);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene, SampleScenePath);
+            Debug.Log("ProjectSetup: SampleScene 的创建/加入按钮已绑定 SafeMainMenuRuntime，并已加入 NetworkManager_GO。");
         }
 
         // ------------------------------------------------------------------
@@ -351,7 +417,7 @@ namespace GameNet.EditorTools
             // 幂等：避免重复接线。
             for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
             {
-                if (button.onClick.GetPersistentTarget(i) is MainMenuUIController && button.onClick.GetPersistentMethodName(i) == action.Method.Name)
+                if (button.onClick.GetPersistentTarget(i) == action.Target && button.onClick.GetPersistentMethodName(i) == action.Method.Name)
                 {
                     return;
                 }
@@ -447,9 +513,10 @@ namespace GameNet.EditorTools
             {
                 new EditorBuildSettingsScene(MainMenuScenePath, true),
                 new EditorBuildSettingsScene(GamePlayScenePath, true),
+                new EditorBuildSettingsScene(SampleScenePath, true),
             };
             EditorBuildSettings.scenes = scenes;
-            Debug.Log("ProjectSetup: Build Settings 场景已注册（MainMenu, GamePlay）。");
+            Debug.Log("ProjectSetup: Build Settings 场景已注册（MainMenu, GamePlay, SampleScene）。");
         }
 
         // ------------------------------------------------------------------
