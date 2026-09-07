@@ -29,8 +29,8 @@ public sealed class SafeMainMenuRuntime : MonoBehaviour
 
     private void Start()
     {
-        CreateRuntimeCamera();
-        BuildUi();
+        Camera uiCamera = EnsureMainMenuCamera();
+        BuildUi(uiCamera);
         if (startHidden && m_Canvas != null)
         {
             m_Canvas.enabled = false;
@@ -70,13 +70,28 @@ public sealed class SafeMainMenuRuntime : MonoBehaviour
         m_Bound = true;
     }
 
-    private void BuildUi()
+    private void BuildUi(Camera uiCamera)
     {
         var canvasObject = new GameObject("RuntimeMainMenuCanvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
         canvasObject.layer = 5;
         m_Canvas = canvasObject.GetComponent<Canvas>();
-        m_Canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        // 使用 Screen Space - Camera：UI 只显示在主相机的 16:9 取景区域内，
+        // 不会铺到 Letterbox 黑边外面，和游玩界面在同一套画幅体系下。
+        m_Canvas.renderMode = RenderMode.ScreenSpaceCamera;
+        m_Canvas.worldCamera = uiCamera;
+        m_Canvas.planeDistance = 100f;
         m_Canvas.sortingOrder = 100;
+
+        // 固定参考分辨率，保证 UI 在任意屏幕/窗口比例下的视觉占比一致。
+        var scaler = canvasObject.GetComponent<CanvasScaler>();
+        if (scaler == null)
+        {
+            scaler = canvasObject.AddComponent<CanvasScaler>();
+        }
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+        scaler.matchWidthOrHeight = 0.5f;
 
         var panel = CreateImage("Panel", m_Canvas.transform, new Vector2(760f, 520f), new Vector2(0.5f, 0.5f), new Color(0.035f, 0.045f, 0.065f, 0.98f));
         CreateText("Title", panel.transform, "联机大厅", 42, Color.white, new Vector2(0f, 185f), new Vector2(620f, 70f), TextAnchor.MiddleCenter);
@@ -100,21 +115,31 @@ public sealed class SafeMainMenuRuntime : MonoBehaviour
         CreateText("Hint", panel.transform, "当前为 DirectIP 直连：本机用 127.0.0.1，局域网填写主机 IP", 16, new Color(0.6f, 0.65f, 0.72f), new Vector2(0f, -235f), new Vector2(650f, 32f), TextAnchor.MiddleCenter);
     }
 
-    private static void CreateRuntimeCamera()
+    /// <summary>
+    /// 获取或创建主菜单使用的相机（作为 UI 的 Screen Space - Camera 渲染相机），
+    /// 并保证该相机挂载 FixedAspectLetterbox，使菜单与游玩画面统一为 16:9 黑边体系。
+    /// </summary>
+    private static Camera EnsureMainMenuCamera()
     {
-        if (Camera.main != null)
+        var camera = Camera.main;
+        if (camera == null)
         {
-            return;
+            var cameraObject = new GameObject("RuntimeMainMenuCamera", typeof(Camera));
+            cameraObject.tag = "MainCamera";
+            camera = cameraObject.GetComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = Color.black;
+            camera.orthographic = true;
+            camera.orthographicSize = 5f;
+            camera.depth = -100f;
         }
 
-        var cameraObject = new GameObject("RuntimeMainMenuCamera", typeof(Camera));
-        cameraObject.tag = "MainCamera";
-        var camera = cameraObject.GetComponent<Camera>();
-        camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = Color.black;
-        camera.orthographic = true;
-        camera.orthographicSize = 5f;
-        camera.depth = -100f;
+        if (camera.GetComponent<FixedAspectLetterbox>() == null)
+        {
+            camera.gameObject.AddComponent<FixedAspectLetterbox>();
+        }
+
+        return camera;
     }
 
     private void OnClickHost()

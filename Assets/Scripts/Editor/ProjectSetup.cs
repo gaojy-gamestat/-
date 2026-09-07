@@ -412,6 +412,7 @@ namespace GameNet.EditorTools
             if (prefabsList == null)
             {
                 prefabsList = ScriptableObject.CreateInstance<NetworkPrefabsList>();
+                prefabsList.name = "NetworkPrefabsList"; // 必须与文件名一致，否则导入报 Main Object Name does not match filename
                 prefabsList.Add(new NetworkPrefab { Prefab = playerPrefab });
                 AssetDatabase.CreateAsset(prefabsList, NetworkPrefabsPath);
                 Debug.Log($"ProjectSetup: 已创建 {NetworkPrefabsPath}");
