@@ -42,11 +42,11 @@ namespace GameNet.EditorTools
 
             // ---- Build Settings ----
             var scenes = EditorBuildSettings.scenes.Select(s => System.IO.Path.GetFileNameWithoutExtension(s.path)).ToArray();
-            Check(scenes.Contains("MainMenu") && scenes.Contains("GamePlay") && scenes.Contains("SampleScene"), $"BuildSettings 场景注册：[{string.Join(", ", scenes)}]");
+            Check(scenes.Contains("GamePlay") && scenes.Contains("主菜单"), $"BuildSettings 场景注册：[{string.Join(", ", scenes)}]");
 
-            // ---- MainMenu ----
-            var menu = EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity", OpenSceneMode.Single);
-            Check(menu.IsValid(), "MainMenu 场景加载");
+            // ---- 主菜单（美术入口：创建游戏 / 加入游戏 / 退出等按钮）----
+            var menu = EditorSceneManager.OpenScene("Assets/Scenes/\u4E3B\u83DC\u5355.unity", OpenSceneMode.Single);
+            Check(menu.IsValid(), "主菜单场景加载");
 
             var netGo = GameObject.Find("NetworkManager_GO");
             Check(netGo != null, "NetworkManager_GO 存在");
@@ -55,13 +55,6 @@ namespace GameNet.EditorTools
             Check(nm != null, "NetworkManager 组件存在");
             Check(nm != null && nm.GetComponent<UnityTransport>() != null, "UnityTransport 组件存在");
             Check(nm != null && nm.GetComponent<GameNetworkManager>() != null, "GameNetworkManager 组件存在");
-
-            // MainMenu 现在默认使用 SafeMainMenuRuntime 在运行时创建 UI，
-            // 旧版 MainMenuUIController 仍保留给已有场景/测试兼容。
-            var legacyUi = netGo != null ? netGo.GetComponent<MainMenuUIController>() : null;
-            var runtimeUi = GameObject.Find("MainMenuRuntime")?.GetComponent<SafeMainMenuRuntime>();
-            bool hasSupportedMenuUi = legacyUi != null || runtimeUi != null;
-            Check(hasSupportedMenuUi, "MainMenu UI 控制器存在（旧版或运行时安全 UI）");
 
             Check(nm != null && nm.NetworkConfig.PlayerPrefab != null, $"NetworkConfig.PlayerPrefab = {(nm != null && nm.NetworkConfig.PlayerPrefab != null ? nm.NetworkConfig.PlayerPrefab.name : "null")}");
             Check(nm != null && nm.NetworkConfig.Prefabs.NetworkPrefabsLists.Count > 0, "NetworkPrefabsList 已注册");
@@ -76,44 +69,15 @@ namespace GameNet.EditorTools
             Check(playerObj != null && playerObj.GetComponent<PlayerController>() != null, "Player Prefab 带 PlayerController");
             Check(playerObj != null && playerObj.GetComponent<PlayerIdentity>() != null, "Player Prefab 带 PlayerIdentity");
 
-            if (legacyUi != null)
-            {
-                Check(legacyUi.Btn_CreateGame != null, "UI 引用 Btn_CreateGame");
-                Check(legacyUi.Btn_JoinGame != null, "UI 引用 Btn_JoinGame");
-                Check(legacyUi.Panel_CreateRoom != null && !legacyUi.Panel_CreateRoom.activeSelf, "Panel_CreateRoom 存在且默认隐藏");
-                Check(legacyUi.Panel_JoinRoom != null && !legacyUi.Panel_JoinRoom.activeSelf, "Panel_JoinRoom 存在且默认隐藏");
-                Check(legacyUi.Txt_RoomCode != null, "UI 引用 Txt_RoomCode");
-                Check(legacyUi.RoomStatus != null, "UI 引用 RoomStatus");
-                Check(legacyUi.PlayerCount != null, "UI 引用 PlayerCount");
-                Check(legacyUi.Btn_StartHost != null, "UI 引用 Btn_StartHost");
-                Check(legacyUi.Input_RoomCode != null, "UI 引用 Input_RoomCode");
-                Check(legacyUi.ErrorText != null, "UI 引用 ErrorText");
-                Check(legacyUi.Btn_JoinClient != null, "UI 引用 Btn_JoinClient");
-
-                Check(HasClickCall(legacyUi.Btn_CreateGame, "OnClickCreateGame"), "创建游戏按钮 OnClick → OnClickCreateGame");
-                Check(HasClickCall(legacyUi.Btn_JoinGame, "OnClickJoinGame"), "加入游戏按钮 OnClick → OnClickJoinGame");
-                Check(HasClickCall(legacyUi.Btn_StartHost, "OnClickStartHost"), "开始游戏按钮 OnClick → OnClickStartHost");
-                Check(HasClickCall(legacyUi.Btn_JoinClient, "OnClickJoinClient"), "加入按钮 OnClick → OnClickJoinClient");
-            }
-            else
-            {
-                Check(runtimeUi != null, "SafeMainMenuRuntime 运行时 UI 存在");
-                Debug.Log("[Validate] 检测到运行时安全 UI，跳过旧版序列化按钮引用检查");
-            }
-
-            // ---- SampleScene 原始界面 ----
-            var sample = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
-            Check(sample.IsValid(), "SampleScene 场景加载");
-            var sampleCanvas = GameObject.Find("Canvas");
-            var sampleUi = sampleCanvas != null ? sampleCanvas.GetComponent<SampleSceneMenuRuntime>() : null;
-            var sampleCreate = GameObject.Find("创建游戏")?.GetComponent<Button>();
-            var sampleJoin = GameObject.Find("加入游戏")?.GetComponent<Button>();
-            var sampleNetGo = GameObject.Find("NetworkManager_GO");
-            var sampleNm = sampleNetGo != null ? sampleNetGo.GetComponent<NetworkManager>() : null;
-            Check(sampleUi != null, "SampleScene 存档/联机 UI 控制器存在");
-            Check(sampleCreate != null && HasClickCall(sampleCreate, "OpenCreateFromOriginalButton"), "SampleScene 创建游戏按钮已绑定存档选择");
-            Check(sampleJoin != null && HasClickCall(sampleJoin, "OpenJoinFromOriginalButton"), "SampleScene 加入游戏按钮已绑定房间码入口");
-            Check(sampleNm != null && sampleNm.GetComponent<UnityTransport>() != null && sampleNm.GetComponent<GameNetworkManager>() != null, "SampleScene NetworkManager/Transport/GameNetworkManager 完整");
+            // 主菜单 UI 由挂在 Canvas 上的 SampleSceneMenuRuntime 运行时创建安全联机弹窗，
+            // 创建游戏 / 加入游戏 按钮必须绑定其公开入口。
+            var menuCanvas = GameObject.Find("Canvas");
+            var menuUi = menuCanvas != null ? menuCanvas.GetComponent<SampleSceneMenuRuntime>() : null;
+            Check(menuUi != null, "主菜单存档/联机 UI 控制器存在");
+            var menuCreate = GameObject.Find("创建游戏")?.GetComponent<Button>();
+            var menuJoin = GameObject.Find("加入游戏")?.GetComponent<Button>();
+            Check(menuCreate != null && HasClickCall(menuCreate, "OpenCreateFromOriginalButton"), "主菜单 创建游戏按钮已绑定存档选择");
+            Check(menuJoin != null && HasClickCall(menuJoin, "OpenJoinFromOriginalButton"), "主菜单 加入游戏按钮已绑定房间码入口");
 
             // ---- GamePlay ----
             var play = EditorSceneManager.OpenScene("Assets/Scenes/GamePlay.unity", OpenSceneMode.Single);

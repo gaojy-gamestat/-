@@ -6,8 +6,8 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// SampleScene 原主菜单的联机入口。
-/// 原场景的前两个按钮负责进入创建/加入流程，本脚本只在点击后显示安全弹窗。
+/// 主菜单的联机入口（挂在主菜单场景 Canvas 上）。
+/// 场景中的 创建游戏 / 加入游戏 按钮进入创建/加入流程，本脚本在点击后显示安全弹窗。
 /// </summary>
 public sealed class SampleSceneMenuRuntime : MonoBehaviour
 {
@@ -272,7 +272,7 @@ public sealed class SampleSceneMenuRuntime : MonoBehaviour
 
     private void BuildUi()
     {
-        var canvasObject = new GameObject("SampleSceneNetworkCanvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
+        var canvasObject = new GameObject("MainMenuNetworkCanvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
         canvasObject.layer = 5;
         m_Canvas = canvasObject.GetComponent<Canvas>();
         m_Canvas.renderMode = RenderMode.ScreenSpaceOverlay;

@@ -39,7 +39,7 @@ namespace GameNet
 
     public class GameNetworkManager : MonoBehaviour
     {
-        public const string MainMenuSceneName = "MainMenu";
+        public const string MainMenuSceneName = "主菜单";
         public const string GamePlaySceneName = "GamePlay";
         public const int MaxPlayers = 2;
 
@@ -437,7 +437,7 @@ namespace GameNet
 
         // Host-authoritative 出生策略：
         // - 只有当 Host 已在 GamePlay 场景时才允许连接即生成玩家（出生点由审批指定）；
-        // - 还在 MainMenu 时先不生成玩家，等 GamePlay 网络场景加载完成后由 Host 统一 SpawnAsPlayerObject。
+        // - 还在主菜单时先不生成玩家，等 GamePlay 网络场景加载完成后由 Host 统一 SpawnAsPlayerObject。
         private bool HostInGamePlay => UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == GamePlaySceneName;
 
         private void ApproveConnection(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)

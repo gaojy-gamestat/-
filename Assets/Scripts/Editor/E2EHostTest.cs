@@ -49,7 +49,7 @@ namespace GameNet.EditorTools
         {
             EditorApplication.update -= Boot;
 
-            EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity", OpenSceneMode.Single);
+            EditorSceneManager.OpenScene("Assets/Scenes/主菜单.unity", OpenSceneMode.Single);
             EditorApplication.isPlaying = true;
             EditorApplication.update += StartRunner;
         }

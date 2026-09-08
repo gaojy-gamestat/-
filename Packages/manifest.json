@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.unity.collab-proxy": "2.12.4",
     "com.unity.feature.development": "1.0.1",
     "com.unity.netcode.gameobjects": "1.15.1",
     "com.unity.services.authentication": "3.7.4",

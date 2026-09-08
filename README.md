@@ -15,14 +15,16 @@
 
 ```
 Assets/
-  Scenes/MainMenu.unity   主菜单（基于原 SampleScene 的 UI，保留 创建游戏/加入游戏/设置/退出/制作人员）
+  Scenes/主菜单.unity     主菜单（创建游戏/加入游戏/设置/退出/制作人员；联机入口由 SampleSceneMenuRuntime 运行时安全弹窗接管）
+  Scenes/联机.unity       联机/运行时轻量主菜单（SafeMainMenuRuntime 运行时创建 UI，含 NetworkManager_GO）
   Scenes/GamePlay.unity   联机游戏场景（占位房间，可正常被 NGO 网络场景管理加载）
-  Scenes/SampleScene.unity 原始场景（保留未动）
   Prefabs/Player.prefab   最小联网玩家占位（NetworkObject + NetworkTransform + CharacterController，胶囊体占位模型）
   Prefabs/NetworkPrefabsList.asset
   Scripts/
-    Net/GameNetworkManager.cs     Relay 建房/加入、房间状态机、玩家生成策略、连接审批
-    UI/MainMenuUIController.cs    主菜单 UI 控制（Panel_CreateRoom / Panel_JoinRoom）
+    Net/GameNetworkManager.cs     Relay 建房/加入、房间状态机、玩家生成策略、连接审批（主菜单场景名 = "主菜单"）
+    UI/SampleSceneMenuRuntime.cs  主菜单场景联机入口（创建游戏/加入游戏按钮 → 运行时安全弹窗 + 存档选择）
+    UI/SafeMainMenuRuntime.cs     联机场景运行时轻量主菜单（运行时创建 UI）
+    UI/MainMenuUIController.cs    旧版序列化 UI 控制器（保留给 E2E 兼容引用）
     Player/PlayerController.cs    Host-authoritative 移动（Owner 采集输入 → ServerRpc → Host 执行）
     Player/PlayerIdentity.cs      机敏哥(Host) / 老实人(Client) 身份标识
     Save/GameSaveData.cs          JsonUtility 可序列化存档结构（无 Dictionary，全部 [Serializable] 列表）
