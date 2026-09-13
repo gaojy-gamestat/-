@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using GameNet;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -77,6 +78,24 @@ public sealed class SampleSceneMenuRuntime : MonoBehaviour
         m_Canvas.enabled = true;
         m_Mode = MenuMode.Join;
         RenderJoinMenu();
+    }
+
+    /// <summary>
+    /// 主菜单 → 关卡选择 的入口。把主菜单上「开始游戏 / 选择关卡」按钮的 onClick 绑到本方法即可。
+    /// 前提：关卡选择场景已加入 Build Settings。
+    /// </summary>
+    public void OpenLevelSelect()
+    {
+        const string sceneName = "关卡选择";
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[UI] 场景 “{sceneName}” 没有加入 Build Settings，无法进入选关界面。" +
+                           "请到 File → Build Settings 把该场景拖进列表。");
+            return;
+        }
+
+        Debug.Log($"[UI] 进入场景：{sceneName}");
+        SceneManager.LoadScene(sceneName);
     }
 
     private void RenderCreateMenu()
