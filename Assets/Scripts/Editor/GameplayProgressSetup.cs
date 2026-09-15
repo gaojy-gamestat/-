@@ -154,7 +154,7 @@ namespace GameNet.EditorTools
             BuildMissionBoard(canvas.transform, font, tasks);
             BuildCountdown(canvas.transform, font, countdown);
             BuildControlHelp(canvas.transform);
-            BuildCharacterSelector(canvas.transform);
+            BuildPlayerPanels(canvas.transform);
             BuildBackpack(canvas.transform);
             BuildAngerBar(canvas.transform, font, anger);
             BuildControlButtons(canvas.transform);
@@ -164,7 +164,17 @@ namespace GameNet.EditorTools
         private static void BuildMissionBoard(Transform parent, TMP_FontAsset font, LevelTaskSystem tasks)
         {
             var board = CreateImage("MissionBoard", parent, SpriteAt("d551eff802c4e47eaf0c7943180bfece.png"));
-            SetRect(board.gameObject, new Vector2(250f, 850f), new Vector2(560f, 290f));
+            SetRect(board.gameObject, new Vector2(285f, 885f), new Vector2(535f, 270f));
+            var title = CreateText("LevelTitle", board.transform, font, "Duke家一楼客厅", 25, TextAlignmentOptions.Left);
+            title.color = new Color(0.16f, 0.09f, 0.04f);
+            title.fontStyle = FontStyles.Bold;
+            SetRect(title.gameObject, new Vector2(-35f, 78f), new Vector2(385f, 38f));
+            var objective = CreateText("Objective", board.transform, font,
+                "本关目标：\n在Duke回来前，布置陷阱并\n触发至少 6 次整蛊", 19, TextAlignmentOptions.Left);
+            objective.color = new Color(0.16f, 0.09f, 0.04f);
+            objective.enableWordWrapping = true;
+            objective.lineSpacing = -8f;
+            SetRect(objective.gameObject, new Vector2(5f, -5f), new Vector2(430f, 118f));
             var descriptions = new TMP_Text[3];
             var progress = new TMP_Text[3];
             var statuses = new TMP_Text[3];
@@ -172,12 +182,15 @@ namespace GameNet.EditorTools
             for (int i = 0; i < 3; i++)
             {
                 var row = CreateText("Task" + (i + 1), board.transform, font, labels[i], 24, TextAlignmentOptions.Left);
+                row.gameObject.SetActive(false);
                 SetRect(row.gameObject, new Vector2(-100f, 65f - i * 58f), new Vector2(280f, 42f));
                 descriptions[i] = row;
                 var count = CreateText("Progress" + (i + 1), board.transform, font, "0 / 1", 22, TextAlignmentOptions.Right);
+                count.gameObject.SetActive(false);
                 SetRect(count.gameObject, new Vector2(120f, 65f - i * 58f), new Vector2(85f, 42f));
                 progress[i] = count;
                 var status = CreateText("Status" + (i + 1), board.transform, font, "", 28, TextAlignmentOptions.Center);
+                status.gameObject.SetActive(false);
                 SetRect(status.gameObject, new Vector2(-205f, 65f - i * 58f), new Vector2(42f, 42f));
                 statuses[i] = status;
             }
@@ -201,23 +214,24 @@ namespace GameNet.EditorTools
         private static void BuildControlHelp(Transform parent)
         {
             var help = CreateImage("ControlHelp", parent, SpriteAt("89827f70c2513ce3090fd6fb92ab4713.png"));
-            SetRect(help.gameObject, new Vector2(1695f, 835f), new Vector2(300f, 370f));
+            SetRect(help.gameObject, new Vector2(1510f, 755f), new Vector2(230f, 285f));
         }
 
-        private static void BuildCharacterSelector(Transform parent)
+        private static void BuildPlayerPanels(Transform parent)
         {
             var selector = CreateImage("CharacterSelector", parent, SpriteAt("6fc7fc6e0a959e7b9dc0c7814789b868.png"));
-            SetRect(selector.gameObject, new Vector2(220f, 175f), new Vector2(430f, 230f));
-            var felix = CreateImage("FelixButton", selector.transform, SpriteAt("99e9139737128f1dad9e7594efca89cd.png"));
-            SetRect(felix.gameObject, new Vector2(-100f, 0f), new Vector2(190f, 70f));
-            var oscar = CreateImage("OscarButton", selector.transform, SpriteAt("b47a4f896101e6660d8198f08505acc6.png"));
-            SetRect(oscar.gameObject, new Vector2(100f, 0f), new Vector2(190f, 70f));
+            SetRect(selector.gameObject, new Vector2(960f, 165f), new Vector2(430f, 230f));
+
+            var felixPortrait = CreateImage("FelixPortrait", parent, SpriteAt("8bcf2273c8d7f00996b43cc4a29a40fc.png"));
+            SetRect(felixPortrait.gameObject, new Vector2(115f, 155f), new Vector2(125f, 125f));
+            var felixButton = CreateImage("FelixButton", parent, SpriteAt("99e9139737128f1dad9e7594efca89cd.png"));
+            SetRect(felixButton.gameObject, new Vector2(115f, 65f), new Vector2(180f, 62f));
         }
 
         private static void BuildBackpack(Transform parent)
         {
             var backpack = CreateImage("Backpack", parent, SpriteAt("0279c9ca8fb19c361fc1ea9d0bbe38dc.png"));
-            SetRect(backpack.gameObject, new Vector2(1735f, 470f), new Vector2(270f, 610f));
+            SetRect(backpack.gameObject, new Vector2(1760f, 655f), new Vector2(245f, 610f));
             var items = new[]
             {
                 "ef4ef1e44d04c0de589030943ed860c0.png",
@@ -229,7 +243,7 @@ namespace GameNet.EditorTools
             for (int i = 0; i < items.Length; i++)
             {
                 var item = CreateImage("Item" + (i + 1), backpack.transform, SpriteAt(items[i]));
-                SetRect(item.gameObject, new Vector2(0f, 205f - i * 95f), new Vector2(115f, 78f));
+                SetRect(item.gameObject, new Vector2(0f, 205f - i * 95f), new Vector2(105f, 74f));
             }
         }
 
@@ -250,9 +264,10 @@ namespace GameNet.EditorTools
             var value = CreateText("AngerValue", bar.transform, font, "0 / 100", 22, TextAlignmentOptions.Center);
             SetRect(value.gameObject, new Vector2(190f, -30f), new Vector2(210f, 32f));
             var portrait = CreateImage("DukeStagePortrait", parent, SpriteAt("42ea7807b0e38c4dcc0ff0e48e07fa05.png"));
-            SetRect(portrait.gameObject, new Vector2(1680f, 155f), new Vector2(250f, 250f));
-            var stage = CreateText("AngerStage", parent, font, "烦躁 (0-30%)", 26, TextAlignmentOptions.Center);
-            SetRect(stage.gameObject, new Vector2(1680f, 25f), new Vector2(300f, 42f));
+            SetRect(portrait.gameObject, new Vector2(1760f, 150f), new Vector2(180f, 180f));
+            var stage = CreateText("AngerStage", parent, font, "烦躁 (0-30%)", 22, TextAlignmentOptions.Center);
+            stage.color = new Color(0.16f, 0.09f, 0.04f);
+            SetRect(stage.gameObject, new Vector2(1760f, 42f), new Vector2(230f, 38f));
             var ui = bar.gameObject.AddComponent<HomeownerAngerUI>();
             ui.ConfigureVisuals(anger, null, fill, value, portrait, stage,
                 SpriteAt("42ea7807b0e38c4dcc0ff0e48e07fa05.png"),
@@ -264,11 +279,15 @@ namespace GameNet.EditorTools
         private static void BuildControlButtons(Transform parent)
         {
             var play = CreateImage("PlayButton", parent, SpriteAt("f330d0c93a98e3c15d47973e0932c13d.png"));
-            SetRect(play.gameObject, new Vector2(820f, 930f), new Vector2(80f, 80f));
+            SetRect(play.gameObject, new Vector2(1510f, 1010f), new Vector2(62f, 62f));
+            var settings = CreateImage("SettingsButton", parent, SpriteAt("02fdc73f38ad6735b2b031982bfeebbb.png"));
+            SetRect(settings.gameObject, new Vector2(1585f, 1010f), new Vector2(62f, 62f));
+            var sound = CreateImage("SoundButton", parent, SpriteAt("282d0e27e4522d58865975c53e77986e.png"));
+            SetRect(sound.gameObject, new Vector2(1660f, 1010f), new Vector2(62f, 62f));
             var pause = CreateImage("PauseButton", parent, SpriteAt("16572d0127d446d9b80bbd9c98bdfe05.png"));
-            SetRect(pause.gameObject, new Vector2(900f, 930f), new Vector2(80f, 80f));
+            SetRect(pause.gameObject, new Vector2(1735f, 1010f), new Vector2(62f, 62f));
             var exit = CreateImage("ExitButton", parent, SpriteAt("599ac49273521ed78729859cf23c42d7.png"));
-            SetRect(exit.gameObject, new Vector2(1825f, 930f), new Vector2(80f, 80f));
+            SetRect(exit.gameObject, new Vector2(1810f, 1010f), new Vector2(62f, 62f));
         }
 
         private static Image CreateImage(string name, Transform parent, Sprite sprite)
