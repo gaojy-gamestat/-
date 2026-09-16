@@ -32,6 +32,7 @@ namespace GameNet.Gameplay
         private readonly NetworkList<TaskProgressState> m_NetworkTasks = new NetworkList<TaskProgressState>();
         private readonly List<LevelTaskData> m_LocalTasks = new List<LevelTaskData>();
         private readonly Dictionary<string, bool> m_LastCompleted = new Dictionary<string, bool>(StringComparer.Ordinal);
+        private bool m_AllTasksCompleted;
 
         public event Action<LevelTaskData> OnTaskProgressChanged;
         public event Action<LevelTaskData> OnTaskCompleted;
@@ -58,6 +59,8 @@ namespace GameNet.Gameplay
             if (!HasAuthority) return;
 
             var clones = CloneTasks(definitions);
+            m_LastCompleted.Clear();
+            m_AllTasksCompleted = false;
             if (IsNetworkStateActive)
             {
                 m_NetworkTasks.Clear();
@@ -78,7 +81,9 @@ namespace GameNet.Gameplay
             if (index < 0) return;
 
             LevelTaskData task = GetTaskAt(index);
-            task.currentProgress = Mathf.Clamp(value, 0, Mathf.Max(1, task.targetProgress));
+            int next = Mathf.Clamp(value, 0, Mathf.Max(1, task.targetProgress));
+            if (task.currentProgress == next) return;
+            task.currentProgress = next;
             WriteTask(index, task);
         }
 
@@ -88,6 +93,14 @@ namespace GameNet.Gameplay
             LevelTaskData task = GetTask(taskId);
             if (task == null) return;
             SetTaskProgress(taskId, task.currentProgress + amount);
+        }
+
+        public void RemoveTaskProgress(string taskId, int amount = 1)
+        {
+            if (!HasAuthority || amount <= 0) return;
+            LevelTaskData task = GetTask(taskId);
+            if (task == null) return;
+            SetTaskProgress(taskId, task.currentProgress - amount);
         }
 
         public void CompleteTask(string taskId)
@@ -169,7 +182,9 @@ namespace GameNet.Gameplay
 
             float overall = GetOverallProgress();
             OnOverallProgressChanged?.Invoke(overall);
-            if (AreAllTasksCompleted()) OnAllTasksCompleted?.Invoke();
+            bool allCompleted = AreAllTasksCompleted();
+            if (allCompleted && !m_AllTasksCompleted) OnAllTasksCompleted?.Invoke();
+            m_AllTasksCompleted = allCompleted;
         }
 
         private void WriteTask(int index, LevelTaskData task)

@@ -401,18 +401,31 @@ namespace GameNet.EditorTools
             Check(Mathf.Approximately(anger.GetAnger(), 100f), "Anger 上限 100");
             anger.RemoveAnger(200f);
             Check(Mathf.Approximately(anger.GetAnger(), 0f) && !float.IsNaN(anger.GetAnger()), "Anger 下限 0");
+            anger.AddAnger(-10f);
+            anger.RemoveAnger(-10f);
+            Check(Mathf.Approximately(anger.GetAnger(), 0f), "Anger 拒绝负数增减");
+            anger.AddAnger(10f);
+            anger.RemoveAnger(4f);
+            Check(Mathf.Approximately(anger.GetAnger(), 6f), "Anger 正常增减");
 
             var tasks = go.AddComponent<LevelTaskSystem>();
             tasks.InitializeTasks(new[]
             {
                 Task("a", "Task A", 1), Task("b", "Task B", 3), Task("c", "Task C", 1)
             });
+            int allCompletedEvents = 0;
+            tasks.OnAllTasksCompleted += () => allCompletedEvents++;
             tasks.CompleteTask("a");
             tasks.AddTaskProgress("b");
             tasks.AddTaskProgress("b", 2);
             tasks.CompleteTask("c");
             Check(tasks.GetCompletedTaskCount() == 3 && tasks.GetTotalTaskCount() == 3, "任务完成数量 3 / 3");
-            Check(tasks.AreAllTasksCompleted() && Mathf.Approximately(tasks.GetOverallProgress(), 1f), "任务总体进度 1.0");
+            Check(tasks.AreAllTasksCompleted() && Mathf.Approximately(tasks.GetOverallProgress(), 1f)
+                && allCompletedEvents == 1, "任务总体进度 1.0 / 完成事件一次");
+            tasks.RemoveTaskProgress("b", 2);
+            Check(tasks.GetTask("b").currentProgress == 1 && !tasks.AreAllTasksCompleted(), "任务进度可下降");
+            tasks.AddTaskProgress("b", 2);
+            Check(tasks.AreAllTasksCompleted() && allCompletedEvents == 2, "任务下降后可再次完成");
 
             var countdown = go.AddComponent<CountdownSystem>();
             countdown.SetDuration(level02.timeLimitSeconds);

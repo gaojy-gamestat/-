@@ -61,13 +61,13 @@ namespace GameNet.Gameplay
 
         public void AddAnger(float amount)
         {
-            if (!HasAuthority || !IsFinite(amount)) return;
+            if (!HasAuthority || !IsFinite(amount) || amount <= 0f) return;
             SetAnger(CurrentAnger + amount);
         }
 
         public void RemoveAnger(float amount)
         {
-            if (!HasAuthority || !IsFinite(amount)) return;
+            if (!HasAuthority || !IsFinite(amount) || amount <= 0f) return;
             SetAnger(CurrentAnger - amount);
         }
 
