@@ -133,7 +133,8 @@ namespace GameNet.EditorTools
             LevelTaskSystem tasks, CountdownSystem countdown)
         {
             var canvas = GameObject.Find("Level01HUD");
-            if (canvas == null) canvas = new GameObject("Level01HUD");
+            if (canvas != null) UnityEngine.Object.DestroyImmediate(canvas);
+            canvas = new GameObject("Level01HUD", typeof(RectTransform));
             SceneManager.MoveGameObjectToScene(canvas, scene);
             ClearChildren(canvas.transform);
 
@@ -147,6 +148,15 @@ namespace GameNet.EditorTools
             scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.matchWidthOrHeight = 0.5f;
             if (canvas.GetComponent<GraphicRaycaster>() == null) canvas.AddComponent<GraphicRaycaster>();
+            var canvasRect = canvas.GetComponent<RectTransform>();
+            Undo.RecordObject(canvasRect, "Reset level HUD root transform");
+            canvasRect.localPosition = Vector3.zero;
+            canvasRect.localRotation = Quaternion.identity;
+            canvasRect.localScale = Vector3.one;
+            EditorUtility.SetDirty(canvasRect);
+            var serializedCanvasRect = new SerializedObject(canvasRect);
+            serializedCanvasRect.FindProperty("m_LocalScale").vector3Value = Vector3.one;
+            serializedCanvasRect.ApplyModifiedPropertiesWithoutUndo();
 
             var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Fonts/msyh SDF.asset")
                        ?? AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/TextMesh Pro/Resources/Fonts & Materials/NotoSansSC SDF.asset");
