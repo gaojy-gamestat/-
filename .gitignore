@@ -84,3 +84,6 @@ sysinfo.txt
 Builds/
 /Build/
 recordings/
+
+# 字体修复脚本自动生成的场景备份（一次性产物，不该入库）
+SceneBackup_手动/FontFixBackup/

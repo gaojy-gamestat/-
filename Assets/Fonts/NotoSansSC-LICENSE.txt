@@ -1,0 +1,46 @@
+思源黑体 / Noto Sans SC
+========================
+
+文件：NotoSansSC-Regular.ttf
+用途：项目内所有中文文本（UI / TextMeshPro）
+
+
+授权
+----
+
+SIL Open Font License, Version 1.1
+Copyright (c) Google LLC 与 Adobe，2014–2021。
+
+许可证全文：
+    https://scripts.sil.org/OFL
+官方发布页：
+    https://github.com/notofonts/noto-cjk
+
+
+可以做什么
+----------
+
+- 免费商用，无需付费或署名
+- 可以嵌入 / 打包进游戏并随游戏发布
+- 可以在项目中修改使用
+
+
+需要做什么
+----------
+
+SIL OFL 的唯一硬性要求：字体文件本身不能被单独出售，
+并且必须以本许可证再分发。也就是说：
+
+  1. 不要把 NotoSansSC-Regular.ttf 单独拿出来卖；
+  2. 分发游戏时把这个 LICENSE 一起带上（放进包内或说明文档均可）。
+
+只要做到这两点，随游戏发布完全没有问题。
+
+
+为什么不用 Windows 系统字体
+---------------------------
+
+C:\Windows\Fonts 下的宋体 / 黑体 / 楷体 / 仿宋 / 微软雅黑 / 等线
+（simsun、simhei、simkai、simfang、msyh、Deng 等）版权归微软与方正，
+Windows 授权只允许"在这台机器上使用"，不允许随应用程序分发。
+把它们打包进游戏属于侵权，因此本项目一律改用思源黑体。

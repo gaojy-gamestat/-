@@ -524,9 +524,18 @@ public static class MenuPanelsBuilder
         EditorUtility.SetDirty(txt);
     }
 
+    // 思源黑体（Noto Sans SC，SIL OFL 1.1，免费可商用、可随游戏发布）
+    private const string CjkFontPath = "Assets/Fonts/NotoSansSC-Regular.ttf";
+
     private static Font UiFont()
     {
-        Font font = null;
+        // 优先用项目里的中文字体；内置 Arial / LegacyRuntime 不含汉字，会显示成方框。
+        Font font = AssetDatabase.LoadAssetAtPath<Font>(CjkFontPath);
+        if (font != null)
+        {
+            return font;
+        }
+
         try { font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); }
         catch { }
         if (font == null)

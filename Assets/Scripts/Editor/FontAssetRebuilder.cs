@@ -102,6 +102,14 @@ namespace GameNet.EditorTools
                 return;
             }
 
+            // 这个资产已废弃（项目改用楷体 SIMKAI）。文件不存在时不要自动重建，
+            // 否则每次打开编辑器都会报一次"找不到字体资产"。
+            if (!File.Exists(FontAssetPath))
+            {
+                EditorPrefs.SetBool(AutoRunKey, true);
+                return;
+            }
+
             if (EditorApplication.isCompiling || EditorApplication.isUpdating)
             {
                 EditorApplication.delayCall += AutoRebuildIfBroken;

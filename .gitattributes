@@ -72,3 +72,11 @@
 # Fonts
 *.ttf filter=lfs diff=lfs merge=lfs -text
 *.otf filter=lfs diff=lfs merge=lfs -text
+
+# =========================
+# 项目字体目录：不进 LFS
+# LFS 指针只有 132 字节，Unity 导入不了 → 中文全部变方框。
+# 字体属于"少一个字节就全屏方框"的关键资产，必须原样进库。
+# （放在文件末尾，覆盖上面的 *.ttf / *.asset 规则）
+# =========================
+Assets/Fonts/** -filter -diff -merge -text
