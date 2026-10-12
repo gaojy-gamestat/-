@@ -7,8 +7,9 @@ using UnityEngine;
 /// 用法：
 ///  1. 把这个组件挂到“Main Camera”（游戏主相机）上即可；
 ///  2. 运行时它会自动创建一个全屏黑底相机垫底（不污染场景层级）；
-///  3. 之后若加 HUD/UI：把 Canvas 的 Render Mode 改为 Screen Space - Camera，
-///     Render Camera 指定为主相机，HUD 就会跟着 16:9 画面走，不会跑到黑边外面。
+///  3. UI 保持 Screen Space - Overlay 即可（第一关的 Canvas 就是这样）：
+///     Canvas 上的 CanvasScaler 用 Scale With Screen Size + 1920×1080 + Match 0.5，
+///     UI 会随屏幕等比缩放、相对位置不变，不会因为黑边而错位。
 ///
 /// 测试：进入 Play 后，用 Game 视图左上角下拉框切换 Free Aspect / 16:9 / 4:3 等，
 ///       可立即看到黑边自动出现在左右或上下。

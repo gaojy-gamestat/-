@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
@@ -42,6 +43,9 @@ namespace GameNet
         public const string MainMenuSceneName = "主菜单";
         public const string GamePlaySceneName = "GamePlay";
         public const int MaxPlayers = 2;
+
+        /// <summary>UGS 初始化 / 匿名登录的超时上限（毫秒）。断网或服务异常时它们可能永不返回。</summary>
+        public const int ServicesTimeoutMs = 30000;
 
         private static GameNetworkManager s_Instance;
 
@@ -186,6 +190,18 @@ namespace GameNet
             }
         }
 
+        // 打包运行时不会走到编辑器钩子（PlayModeNetworkCleanup），这里兜底：
+        // 退出前关闭 Netcode，UTP 才有机会 Dispose 内部的 Native 容器，
+        // 否则会报 "A Native Collection has not been disposed"。
+        private void OnApplicationQuit()
+        {
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            {
+                Debug.Log("[Net] 应用退出：主动 Shutdown，释放 UTP 的 Native 资源。");
+                NetworkManager.Singleton.Shutdown();
+            }
+        }
+
         private bool m_SceneEventsHooked;
 
         /// <summary>网络启动后再订阅场景事件（NGO 启动时会创建真正的 NetworkSceneManager 实例）。</summary>
@@ -224,8 +240,12 @@ namespace GameNet
                 {
                     Debug.Log("[Net][Host] 开始创建 Relay Allocation…");
                     // 双人房：Host 自己 1 个连接 + 预留 1 个给 Client。
-                    Allocation allocation = await RelayService.Instance.CreateAllocationAsync(MaxPlayers - 1, string.IsNullOrEmpty(relayRegion) ? null : relayRegion);
-                    m_JoinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
+                    Allocation allocation = await WithTimeout(
+                        RelayService.Instance.CreateAllocationAsync(MaxPlayers - 1, string.IsNullOrEmpty(relayRegion) ? null : relayRegion),
+                        ServicesTimeoutMs, "Relay 创建房间");
+                    m_JoinCode = await WithTimeout(
+                        RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId),
+                        ServicesTimeoutMs, "获取 Relay 房间码");
                     Debug.Log($"[Net][Host] Relay Allocation 创建成功，Join Code = {m_JoinCode}");
 
                     // 当前项目锁定的 com.unity.services.relay 1.2.0（官方最新版）不包含 AllocationUtils，
@@ -274,6 +294,10 @@ namespace GameNet
             {
                 SetError($"Unity Services 初始化失败：{e.Message}");
             }
+            catch (TimeoutException e)
+            {
+                SetError($"创建房间超时：{e.Message}");
+            }
             catch (Exception e)
             {
                 SetError($"创建房间出现未知异常：{e.Message}");
@@ -311,7 +335,9 @@ namespace GameNet
                 if (connectMode == ConnectMode.Relay)
                 {
                     Debug.Log($"[Net][Client] 尝试使用 Join Code 加入：{joinCode}");
-                    JoinAllocation joinAllocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
+                    JoinAllocation joinAllocation = await WithTimeout(
+                        RelayService.Instance.JoinAllocationAsync(joinCode),
+                        ServicesTimeoutMs, "Relay 加入房间");
                     var relayServerData = new RelayServerData(joinAllocation, "dtls");
                     transport.SetRelayServerData(relayServerData);
                     m_JoinCode = joinCode;
@@ -349,6 +375,10 @@ namespace GameNet
             catch (ServicesInitializationException e)
             {
                 SetError($"Unity Services 初始化失败：{e.Message}");
+            }
+            catch (TimeoutException e)
+            {
+                SetError($"加入房间超时：{e.Message}");
             }
             catch (Exception e)
             {
@@ -476,10 +506,8 @@ namespace GameNet
             {
                 if (m_InitializingServices)
                 {
-                    while (UnityServices.State != ServicesInitializationState.Initialized)
-                    {
-                        await Task.Delay(100);
-                    }
+                    // 已有另一个初始化流程在跑：带截止时间地轮询，它失败时不会无限等待。
+                    await WaitForServicesInitializedAsync();
                 }
                 else
                 {
@@ -487,7 +515,7 @@ namespace GameNet
                     try
                     {
                         Debug.Log("[Net] 初始化 Unity Services…");
-                        await UnityServices.InitializeAsync();
+                        await WithTimeout(UnityServices.InitializeAsync(), ServicesTimeoutMs, "Unity Services 初始化");
                     }
                     finally
                     {
@@ -499,8 +527,65 @@ namespace GameNet
             if (!AuthenticationService.Instance.IsSignedIn)
             {
                 Debug.Log("[Net] 匿名登录 Authentication…");
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                await WithTimeout(AuthenticationService.Instance.SignInAnonymouslyAsync(), ServicesTimeoutMs, "匿名登录");
                 Debug.Log($"[Net] Authentication 登录成功，PlayerId={AuthenticationService.Instance.PlayerId}");
+            }
+        }
+
+        /// <summary>
+        /// 等待由另一次调用触发的 UGS 初始化完成；超过 ServicesTimeoutMs 直接抛 TimeoutException，
+        /// 避免对方初始化失败时这里的 await 永久悬挂。
+        /// </summary>
+        private static async Task WaitForServicesInitializedAsync()
+        {
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(ServicesTimeoutMs);
+
+            while (UnityServices.State != ServicesInitializationState.Initialized)
+            {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    throw new TimeoutException($"等待 Unity Services 初始化超时（{ServicesTimeoutMs / 1000} 秒）。");
+                }
+
+                await Task.Delay(100);
+            }
+        }
+
+        /// <summary>
+        /// 给 UGS 异步调用套超时壳：断网或 Project ID 配置错误时 InitializeAsync / SignInAnonymouslyAsync
+        /// 可能永不返回，Task 会一直挂着，连退出播放模式都清不干净。
+        /// 超时后统一抛 TimeoutException，由调用方的 try/catch 转成 Error 状态。
+        /// </summary>
+        private static async Task WithTimeout(Task task, int timeoutMs, string operation)
+        {
+            using (var cts = new CancellationTokenSource())
+            {
+                Task finished = await Task.WhenAny(task, Task.Delay(timeoutMs, cts.Token));
+
+                if (finished != task)
+                {
+                    throw new TimeoutException($"{operation} 超时（{timeoutMs / 1000} 秒），请检查网络或 Project ID / UGS 配置。");
+                }
+
+                cts.Cancel(); // 取消计时器，避免留下未回收的 timer
+                await task;   // 把内部异常原样抛给上层
+            }
+        }
+
+        /// <summary>同上，带返回值的重载（Relay 的 Allocation / JoinCode 请求需要结果）。</summary>
+        private static async Task<T> WithTimeout<T>(Task<T> task, int timeoutMs, string operation)
+        {
+            using (var cts = new CancellationTokenSource())
+            {
+                Task finished = await Task.WhenAny(task, Task.Delay(timeoutMs, cts.Token));
+
+                if (finished != task)
+                {
+                    throw new TimeoutException($"{operation} 超时（{timeoutMs / 1000} 秒），请检查网络或 Relay 区域配置。");
+                }
+
+                cts.Cancel();
+                return await task;
             }
         }
 
