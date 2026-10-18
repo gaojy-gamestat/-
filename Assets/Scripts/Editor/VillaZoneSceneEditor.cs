@@ -252,7 +252,8 @@ namespace GameNet.Gameplay.EditorTools
                     () => Undo.RecordObject(zone, "拖拽别墅区域顶点（地面）"),
                     p =>
                     {
-                        zone.corners[index] = builder.GroundToImageNorm(p);
+                        // 夹一下，防止鼠标射线掠射地面时算出天文数字坐标
+                        zone.corners[index] = VillaZoneBase.SanitizeNorm(builder.GroundToImageNorm(p));
                         EditorUtility.SetDirty(zone);
                         InternalEditorUtility.RepaintAllViews();
                     });
