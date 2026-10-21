@@ -55,10 +55,32 @@ namespace GameNet.Gameplay
             var result = new Vector3[4];
             for (int i = 0; i < 4; i++)
             {
-                result[i] = b.ImageNormToGround(corners[i]);
+                result[i] = b.ImageNormToGround(SanitizeNorm(corners[i]));
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// 顶点保洁：3D 里拖点时鼠标射线可能几乎与地面平行，反算出的图坐标会是天文数字，
+        /// 进而生成跑到几百万单位外的碰撞体——在 Scene 视图按 F 聚焦它，相机距离会被拉到几十万，
+        /// 整个场景看起来就“空了”。这里把顶点限制在图纸附近的合理范围，并挡掉 NaN/Infinity。
+        /// </summary>
+        public static Vector2 SanitizeNorm(Vector2 n)
+        {
+            float x = Mathf.Clamp(n.x, -1f, 2f);
+            float y = Mathf.Clamp(n.y, -1f, 2f);
+            if (float.IsNaN(x) || float.IsInfinity(x))
+            {
+                x = 0.5f;
+            }
+
+            if (float.IsNaN(y) || float.IsInfinity(y))
+            {
+                y = 0.5f;
+            }
+
+            return new Vector2(x, y);
         }
 
         /// <summary>四边形中心（图坐标，4 顶点平均值）。</summary>

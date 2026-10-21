@@ -32,15 +32,26 @@ namespace GameNet.EditorTools
             }
 
             var nm = NetworkManager.Singleton;
-            if (nm == null || !nm.IsListening)
+            if (nm == null)
             {
                 return;
             }
 
             try
             {
+                // 注意：不能只在 IsListening 时才关。UTP 的 NetworkDriver 在
+                // StartHostAsync/JoinClientAsync 的中途（鉴权、Relay 分配还没返回）
+                // 就已经分配好 Native 容器了，那时尚未进入 Listening；
+                // 这种“半途退出”正是告警的高发场景，所以这里无条件 Shutdown，
+                // 再单独关一次 Transport（Shutdown 内部没走到时兜底）。
                 Debug.Log("[Net] 退出播放模式：主动 Shutdown，释放 UTP 的 Native 资源。");
                 nm.Shutdown();
+
+                var transport = nm.NetworkConfig != null ? nm.NetworkConfig.NetworkTransport : null;
+                if (transport != null)
+                {
+                    transport.Shutdown();
+                }
             }
             catch (Exception e)
             {
