@@ -1,0 +1,21 @@
+{
+  "scene_image": "场景设计.png",
+  "scene_size": [
+    5458,
+    3073
+  ],
+  "sprite_square_rect_px": [
+    3130,
+    710,
+    340
+  ],
+  "sprite_rotation_degrees": 0,
+  "origin": "top_left",
+  "occlusion": "无家具前景遮挡；人物完整显示，包括双脚",
+  "normalized_rect": [
+    0.5734701355807988,
+    0.23104458184184837,
+    0.062293880542323196,
+    0.11064106736088512
+  ]
+}
