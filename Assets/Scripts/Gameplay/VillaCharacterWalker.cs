@@ -101,6 +101,9 @@ namespace GameNet.Gameplay
         private string _currentState;
         private bool _flipped;
         private float _lastDoorTime = -10f; // 上次传送时间（门冷却用）
+        private bool _usingRoom;            // 当前是否已经在用房间系统（多地板限制）行走
+        private float _nextRoomRetry;
+        private int _roomRetryCount;
 
         /// <summary>角色脚底的世界坐标（地面上的真实位置）。</summary>
         public Vector3 FeetWorldPosition { get { return transform.position; } }
@@ -142,6 +145,18 @@ namespace GameNet.Gameplay
                 return;
             }
 
+            // 兼容模式升级：第 1 帧房间系统偶尔没就绪时会先走“旧单地面”兼容路径
+            // （那条路没有地板限制，人能走到房顶/黑阁楼上）。这里持续重试，
+            // 房间系统一旦就绪立刻切回多地板模式并把人放回地板上，绝不永久锁死在兼容模式。
+            if (!_usingRoom)
+            {
+                TryUpgradeToRoom();
+            }
+
+            // 每帧自检：万一角色正好站在家具碰撞框里（出生点/传送落点被改过），
+            // 四个方向都会被判阻挡，人就永远钉死。这里自动挪到最近的空地。
+            EscapeIfStuck();
+
             Vector2 input = ReadInput();
             Move(input);
             PlayAnimation(input);
@@ -181,6 +196,10 @@ namespace GameNet.Gameplay
                 // 出生位置：编辑态把角色拖到哪，Play 就从哪开始（必须落在某块地板上）；
                 // 拖在地板外/没拖过 → 才用 spawnImageNorm 出生点。
                 Teleport(GetStartImageNorm());
+                // 双保险：出生点万一因数据问题落在所有地板之外（房顶/阁楼），立刻夹回最近地板
+                transform.position = room.ClampToWorld(transform.position);
+                EscapeIfStuck();
+                _usingRoom = true;
 
                 if (!mirrorToUI && _spriteRenderer != null)
                 {
@@ -222,7 +241,69 @@ namespace GameNet.Gameplay
 
             PrepareMirror();
             _ready = true;
+            _usingRoom = false; // 兼容模式：等房间系统就绪后由 TryUpgradeToRoom 升级
             return true;
+        }
+
+        /// <summary>
+        /// 兼容模式 → 房间系统的升级：每 0.5 秒重试一次（最多 20 次），
+        /// 一旦房间系统就绪，立刻把角色放回地板上并启用多地板限制。
+        /// 没搭房间区域的项目里 room 永远是 null，此时兼容模式就是最终模式，直接标记完成。
+        /// </summary>
+        private void TryUpgradeToRoom()
+        {
+            if (room == null)
+            {
+                room = FindObjectOfType<VillaRoomBuilder>();
+            }
+
+            if (room == null)
+            {
+                _usingRoom = true; // 整个项目没有房间系统，兼容模式就是最终模式
+                return;
+            }
+
+            if (room.IsReady)
+            {
+                SwitchToRoomMode();
+                return;
+            }
+
+            if (Time.unscaledTime < _nextRoomRetry)
+            {
+                return;
+            }
+
+            _nextRoomRetry = Time.unscaledTime + 0.5f;
+            if (++_roomRetryCount > 20)
+            {
+                Debug.LogWarning("[角色] 房间系统迟迟未就绪，放弃升级，继续用兼容地面行走。");
+                _usingRoom = true;
+                return;
+            }
+
+            room.Rebuild();
+            if (room.IsReady)
+            {
+                SwitchToRoomMode();
+            }
+        }
+
+        /// <summary>从兼容地面切回房间系统：把人放回地板，启用地板限制。</summary>
+        private void SwitchToRoomMode()
+        {
+            Camera c = targetCamera != null ? targetCamera : Camera.main;
+            if (c == null)
+            {
+                return; // 相机还没好，下一帧再试
+            }
+
+            _cam = c;
+            Teleport(GetStartImageNorm());
+            transform.position = room.ClampToWorld(transform.position); // 绝不悬在房顶/阁楼
+            EscapeIfStuck();
+            _usingRoom = true;
+            Debug.Log("[角色] 房间系统已就绪，已切回多地板行走并把角色放回地板。");
         }
 
         // ------------------------------------------------------------------
@@ -291,6 +372,67 @@ namespace GameNet.Gameplay
         }
 
         /// <summary>
+        /// 脱困：角色若正好站在家具/墙的碰撞框里，四个方向都会被判阻挡，
+        /// 表现就是「人物卡在这里完全动不了」。
+        ///
+        /// 判定很克制：先要求「当前位置被挡」，再要求「前后左右各探一步仍全被挡」，
+        /// 两个条件都成立才算真卡死。这样贴着家具边缘正常行走（至少一个方向能走）
+        /// 不会被误伤、不会每帧把角色弹一下。
+        /// 真卡死时才由近及远螺旋搜索一个「落在某块地板内 + 不被阻挡」的位置挪过去。
+        /// </summary>
+        private void EscapeIfStuck()
+        {
+            if (room == null || !room.IsReady) return;
+
+            float radius = CharacterRadiusNorm();
+            Vector3 here = transform.position;
+            if (!room.IsBlocked(here, radius)) return;   // 没被挡，正常
+
+            // 四向探针：只要有一个方向能走，就说明只是贴着家具，不是卡死
+            Vector2 origin = room.GroundToImageNorm(here);
+            Vector2[] dirs = { Vector2.up, Vector2.down, Vector2.left, Vector2.right };
+            const float probe = 0.022f;
+            for (int d = 0; d < dirs.Length; d++)
+            {
+                Vector3 w = room.ImageNormToGround(origin + dirs[d] * probe);
+                if (!room.IsBlocked(w, radius)) return;
+            }
+
+            IList<VillaFloorArea> floors = room.Floors;
+            float step = Mathf.Max(0.02f, radius * 1.5f);
+            for (float r = step; r <= 0.32f; r += step)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    float a = i * Mathf.PI * 2f / 16f;
+                    Vector2 n = origin + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                    if (n.x < 0f || n.x > 1f || n.y < 0f || n.y > 1f) continue;
+
+                    // 必须真的落在某块地板里，否则 ClampToWorld 又会把人拽回框里
+                    bool onFloor = false;
+                    for (int k = 0; k < floors.Count; k++)
+                    {
+                        VillaFloorArea f = floors[k];
+                        if (f != null && f.enabled && f.gameObject.activeInHierarchy &&
+                            f.ContainsImageNorm(n))
+                        {
+                            onFloor = true;
+                            break;
+                        }
+                    }
+                    if (!onFloor) continue;
+
+                    Vector3 w = room.ImageNormToGround(n);
+                    if (room.IsBlocked(w, radius)) continue;
+
+                    Teleport(n);
+                    Debug.LogWarning("[角色] 当前位置被家具碰撞框困住，已自动脱困到 " + n);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
         /// 门检测：走到门区域 → 传送到目标门旁的落点（房间之间不直接连通，靠门切换）。
         /// 传送后有一小段冷却（门的 retriggerCooldown），防止落地即被送回。
         /// </summary>
@@ -347,6 +489,12 @@ namespace GameNet.Gameplay
             if (room != null && room.IsReady)
             {
                 Vector2 n = room.GroundToImageNorm(transform.position);
+                // 编辑态摆放的位置如果正好压在家具碰撞框上，进 Play 就会把人钉死，
+                // 这种情况直接忽略、改用下面配好的安全出生点。
+                if (room.IsBlocked(transform.position, CharacterRadiusNorm()))
+                {
+                    return SafeSpawn();
+                }
                 IList<VillaFloorArea> floors = room.Floors;
                 for (int i = 0; i < floors.Count; i++)
                 {
@@ -355,6 +503,54 @@ namespace GameNet.Gameplay
                     {
                         return n;
                     }
+                }
+            }
+
+            return SafeSpawn();
+        }
+
+        /// <summary>
+        /// 安全出生点：配置的出生点必须「落在某块地板上 + 不贴任何家具碰撞框」才可用；
+        /// 否则自动退到某块地板的中心，保证角色永远不会出生在房顶/阁楼/家具里。
+        /// </summary>
+        private Vector2 SafeSpawn()
+        {
+            if (room == null || !room.IsReady)
+            {
+                return spawnImageNorm;
+            }
+
+            float radius = CharacterRadiusNorm();
+            IList<VillaFloorArea> floors = room.Floors;
+
+            bool onFloor = false;
+            for (int i = 0; i < floors.Count; i++)
+            {
+                VillaFloorArea f = floors[i];
+                if (f != null && f.enabled && f.gameObject.activeInHierarchy &&
+                    f.ContainsImageNorm(spawnImageNorm))
+                {
+                    onFloor = true;
+                    break;
+                }
+            }
+
+            if (onFloor && !room.IsBlocked(room.ImageNormToGround(spawnImageNorm), radius))
+            {
+                return spawnImageNorm;
+            }
+
+            // 出生点不安全（不在地板上 / 压着家具 / 数据被改坏）：逐块地板找中心，
+            // 用第一块「中心不被挡」的地板中心出生。
+            for (int i = 0; i < floors.Count; i++)
+            {
+                VillaFloorArea f = floors[i];
+                if (f == null || !f.enabled || !f.gameObject.activeInHierarchy) continue;
+                Vector2 c = f.CenterImageNorm;
+                if (!room.IsBlocked(room.ImageNormToGround(c), radius))
+                {
+                    Debug.LogWarning("[角色] 配置的出生点不安全，已自动改用「" + f.name + "」中心出生。");
+                    return c;
                 }
             }
 
@@ -530,11 +726,19 @@ namespace GameNet.Gameplay
             }
             else
             {
-                // 运行时生成一张 UI Image，插在别墅图上面一层（HUD 仍在更上层）
+                // 运行时生成一张 UI Image（HUD 仍在更上层）。
+                //
+                // ⚠️ 必须挂进别墅图【里面】，不能挂在它旁边：
+                // Unity 嵌套 Canvas 的 sortingOrder 只在「父 Canvas 的排序空间」内生效。
+                // 家具的排序 Canvas 都在别墅 Canvas 里面；镜像若挂在外面，
+                // 别墅（连同全部家具）作为整体拿 -20000 去和镜像比较 → 家具永远盖不到角色，
+                // 表现就是"人可以走上沙发/床，家具全都挡不住人"。
+                // 挂进去之后，镜像和家具在同一个排序空间里按 sortingOrder 排，遮挡才成立。
+                Transform host = _villaImage.transform;
                 var go = new GameObject("角色镜像(运行时生成)", typeof(RectTransform), typeof(Image));
                 go.hideFlags = HideFlags.DontSave;
                 _mirrorRt = (RectTransform)go.transform;
-                _mirrorRt.SetParent(parent, false);
+                _mirrorRt.SetParent(host, false);
                 _mirrorImage = go.GetComponent<Image>();
                 _mirrorImage.raycastTarget = false;
             }
@@ -546,10 +750,11 @@ namespace GameNet.Gameplay
             _mirrorImage.preserveAspect = true;
             _mirrorImage.raycastTarget = false;
 
-            // 只在“别墅图上面、HUD 下面”这一层
-            if (mirrorTarget == null && _villaImage.transform.parent == _mirrorRt.parent)
+            // 前后顺序交给 VillaDepthSorter 的 sortingOrder（镜像现在就在别墅子树内，
+            // 和家具在同一个排序空间里）。这里只把它排到最后，避免加载瞬间被地板盖住。
+            if (mirrorTarget == null && _mirrorRt.parent != null)
             {
-                _mirrorRt.SetSiblingIndex(_villaImage.transform.GetSiblingIndex() + 1);
+                _mirrorRt.SetSiblingIndex(_mirrorRt.parent.childCount - 1);
             }
 
             _mirrorReady = true;
