@@ -7,7 +7,12 @@ namespace GameNet.Gameplay
     /// <summary>倒计时真实状态。联机时由 Host 驱动，Client 只接收 NetworkVariable。</summary>
     public sealed class CountdownSystem : NetworkBehaviour
     {
-        [SerializeField, Min(0f)] private float defaultDurationSeconds = 600f;
+        [Header("倒计时设置（每关直接在这里改，不用动代码）")]
+        [Tooltip("本关倒计时总时长（分钟）。10 = 10 分钟，12 = 12 分钟，12.5 = 12 分 30 秒。")]
+        [SerializeField, Min(0f)] private float durationMinutes = 10f;
+
+        [Tooltip("进入场景 / 点 Play 后自动开始倒计时。关掉就需要其他脚本手动调 StartTimer()。")]
+        [SerializeField] private bool autoStartOnStart = true;
 
         private readonly NetworkVariable<float> m_NetworkDuration = new NetworkVariable<float>(
             600f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -33,8 +38,28 @@ namespace GameNet.Gameplay
 
         private void Awake()
         {
-            m_LocalDuration = Sanitize(defaultDurationSeconds);
+            m_LocalDuration = Sanitize(durationMinutes * 60f);
             m_LocalRemaining = m_LocalDuration;
+        }
+
+        private void Start()
+        {
+            if (!autoStartOnStart) return;
+
+            // 联机时只有主机负责开始，客户端跟随 NetworkVariable，不自己起表。
+            bool listening = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+            if (listening && !IsServer) return;
+
+            if (!IsRunning) StartTimer();
+        }
+
+        private void OnValidate()
+        {
+            if (durationMinutes < 0f) durationMinutes = 0f;
+
+            // 编辑器里 Play 的时候改了时长，立刻按新时长重置，方便调试。
+            if (!Application.isPlaying || !HasAuthority || IsRunning) return;
+            SetDuration(durationMinutes * 60f);
         }
 
         public override void OnNetworkSpawn()
@@ -47,6 +72,8 @@ namespace GameNet.Gameplay
                 m_NetworkDuration.Value = m_LocalDuration;
                 m_NetworkRemaining.Value = m_LocalRemaining;
                 m_NetworkRunning.Value = m_LocalRunning;
+
+                if (autoStartOnStart && !m_NetworkRunning.Value) StartTimer();
             }
             NotifyTime(true);
         }

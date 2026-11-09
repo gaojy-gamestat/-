@@ -1,11 +1,14 @@
+using GameNet.UI;
 using UnityEngine;
-using UnityEngine.Audio;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
 /// <summary>
 /// 主菜单扩展面板控制器：设置（三个音量条）/ 制作人员 / 退出游戏。
 /// 独立脚本，不改动队友的 MainMenuUIController，避免合并冲突。
+///
+/// 音量统一走 GameAudioSettings：和关卡内弹出的共享设置面板是同一份数据，
+/// 在哪边调，另一边打开时看到的值都一样，并且立刻生效。
 ///
 /// 用法：
 /// 1. 挂到主菜单 Canvas 上；
@@ -29,17 +32,10 @@ public class MenuPanelsController : MonoBehaviour
     public Slider Slider_Music;
     public Slider Slider_SFX;
 
-    [Header("可选：AudioMixer（现在没有可以不填）")]
-    public AudioMixer Mixer;
-    public string MusicParam = "MusicVol";
-    public string SFXParam = "SFXVol";
-
-    private const string KeyMaster = "Vol_Master";
-    private const string KeyMusic = "Vol_Music";
-    private const string KeySFX = "Vol_SFX";
-
     private void Awake()
     {
+        GameAudioSettings.EnsureLoaded();
+
         // 绑定三个主菜单按钮
         if (Btn_Settings != null) Btn_Settings.onClick.AddListener(OnClickSettings);
         if (Btn_Credits != null) Btn_Credits.onClick.AddListener(OnClickCredits);
@@ -49,14 +45,30 @@ public class MenuPanelsController : MonoBehaviour
         EnsureCloseButton(Panel_Settings);
         EnsureCloseButton(Panel_Credits);
 
-        // 三个音量条：读取上次保存的值并生效
-        BindSlider(Slider_Master, KeyMaster, OnMasterChanged);
-        BindSlider(Slider_Music, KeyMusic, OnMusicChanged);
-        BindSlider(Slider_SFX, KeySFX, OnSFXChanged);
+        // 三个音量条：读回上次保存的值并生效（和关卡内设置面板共用同一份）
+        BindSlider(Slider_Master, GameAudioSettings.Master, GameAudioSettings.SetMaster);
+        BindSlider(Slider_Music, GameAudioSettings.Music, GameAudioSettings.SetMusic);
+        BindSlider(Slider_SFX, GameAudioSettings.Sfx, GameAudioSettings.SetSfx);
+
+        // 在别处（比如关卡内）改了音量，这里的音量条也要跟着变
+        GameAudioSettings.Changed += RefreshSliders;
 
         // 默认隐藏两个面板
         if (Panel_Settings != null) Panel_Settings.SetActive(false);
         if (Panel_Credits != null) Panel_Credits.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        GameAudioSettings.Changed -= RefreshSliders;
+    }
+
+    private void RefreshSliders()
+    {
+        // SetValueWithoutNotify：只更新显示，不再反过来触发写入
+        if (Slider_Master != null) Slider_Master.SetValueWithoutNotify(GameAudioSettings.Master);
+        if (Slider_Music != null) Slider_Music.SetValueWithoutNotify(GameAudioSettings.Music);
+        if (Slider_SFX != null) Slider_SFX.SetValueWithoutNotify(GameAudioSettings.Sfx);
     }
 
     // ------------------------------------------------------------------
@@ -65,6 +77,7 @@ public class MenuPanelsController : MonoBehaviour
     public void OnClickSettings()
     {
         if (Panel_Credits != null) Panel_Credits.SetActive(false);
+        RefreshSliders();
         if (Panel_Settings != null) Panel_Settings.SetActive(true);
     }
 
@@ -148,36 +161,12 @@ public class MenuPanelsController : MonoBehaviour
     }
 
     // ------------------------------------------------------------------
-    // 音量调节
+    // 音量：数值读写在 GameAudioSettings 里，这里只负责把 UI 接上去
     // ------------------------------------------------------------------
-    private void BindSlider(Slider slider, string key, UnityAction<float> callback)
+    private void BindSlider(Slider slider, float value, UnityAction<float> callback)
     {
         if (slider == null) return;
-        slider.value = PlayerPrefs.GetFloat(key, 1f);
+        slider.SetValueWithoutNotify(value);
         slider.onValueChanged.AddListener(callback);
-        callback(slider.value);
-    }
-
-    private void OnMasterChanged(float value)
-    {
-        PlayerPrefs.SetFloat(KeyMaster, value);
-        AudioListener.volume = value; // 全局音量：立刻生效
-    }
-
-    private void OnMusicChanged(float value)
-    {
-        PlayerPrefs.SetFloat(KeyMusic, value);
-        if (Mixer != null) Mixer.SetFloat(MusicParam, ToDecibel(value));
-    }
-
-    private void OnSFXChanged(float value)
-    {
-        PlayerPrefs.SetFloat(KeySFX, value);
-        if (Mixer != null) Mixer.SetFloat(SFXParam, ToDecibel(value));
-    }
-
-    private static float ToDecibel(float value)
-    {
-        return value <= 0.0001f ? -80f : Mathf.Log10(value) * 20f;
     }
 }

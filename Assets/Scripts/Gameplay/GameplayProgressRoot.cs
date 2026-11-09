@@ -2,7 +2,11 @@ using UnityEngine;
 
 namespace GameNet.Gameplay
 {
-    /// <summary>GamePlay 中只负责把关卡配置交给三个逻辑系统，不包含 UI。</summary>
+    /// <summary>
+    /// GamePlay 中只负责把关卡配置交给三个逻辑系统，不包含 UI。
+    /// 注意：倒计时时长以场景里 CountdownSystem 组件 Inspector 上的设置为准，
+    /// 这里不再用 LevelConfig 覆盖，避免"改了组件上的数字却没反应"。
+    /// </summary>
     public sealed class GameplayProgressRoot : MonoBehaviour
     {
         [SerializeField] private LevelConfig levelConfig;
@@ -19,7 +23,6 @@ namespace GameNet.Gameplay
         {
             levelConfig = config;
             if (taskSystem != null) taskSystem.SetLevelConfig(config);
-            if (countdownSystem != null) countdownSystem.SetDuration(config != null ? config.timeLimitSeconds : 0f);
         }
 
         private void Awake()
@@ -33,9 +36,6 @@ namespace GameNet.Gameplay
                 taskSystem.SetLevelConfig(levelConfig);
                 taskSystem.InitializeFromConfig();
             }
-
-            if (countdownSystem != null)
-                countdownSystem.SetDuration(levelConfig != null ? levelConfig.timeLimitSeconds : 0f);
         }
     }
 }

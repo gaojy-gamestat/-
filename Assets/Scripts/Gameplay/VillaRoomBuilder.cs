@@ -364,12 +364,17 @@ namespace GameNet.Gameplay
         /// </summary>
         public bool IsBlocked(Vector3 world, float radiusNorm)
         {
+            return BlockedAtNorm(GroundToImageNorm(world), radiusNorm);
+        }
+
+        /// <summary>图片归一化坐标点是否撞上任何障碍物/墙（含角色半径）。</summary>
+        private bool BlockedAtNorm(Vector2 n, float radiusNorm)
+        {
             if (_blockers.Count == 0)
             {
                 return false;
             }
 
-            Vector2 n = GroundToImageNorm(world);
             for (int i = 0; i < _blockers.Count; i++)
             {
                 VillaZoneBase z = _blockers[i];
@@ -388,6 +393,42 @@ namespace GameNet.Gameplay
         }
 
         /// <summary>
+        /// 沿途扫掠判定：不只看终点，还要检查 from→to 这条线有没有【穿过】障碍。
+        ///
+        /// 之前的 bug：只检查终点 → 家具碰撞带很薄（图片深度的百分之几），
+        /// 角色一步迈过去，起点在带前、终点落在带后，整条带被跨过 ——
+        /// 表现就是"人可以直接走上沙发/茶几"。
+        /// 采样步长取角色半径的一半，保证不会从碰撞带中间漏过去。
+        /// </summary>
+        public bool IsBlockedPath(Vector3 from, Vector3 to, float radiusNorm)
+        {
+            if (IsBlocked(to, radiusNorm))
+            {
+                return true;
+            }
+
+            Vector2 a = GroundToImageNorm(from);
+            Vector2 b = GroundToImageNorm(to);
+            float dist = Vector2.Distance(a, b);
+            if (dist < 0.0001f)
+            {
+                return false;
+            }
+
+            float step = Mathf.Max(0.002f, radiusNorm * 0.5f);
+            int steps = Mathf.Clamp(Mathf.CeilToInt(dist / step), 2, 48);
+            for (int i = 1; i < steps; i++)
+            {
+                if (BlockedAtNorm(Vector2.Lerp(a, b, (float)i / steps), radiusNorm))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// 试着从 from 走到 to（世界坐标）：
         /// 1. 整步被挡 → 尝试只走左右分量（沿墙滑动）→ 再尝试只走前后分量；
         /// 2. 都不行 → 原地不动；
@@ -396,23 +437,35 @@ namespace GameNet.Gameplay
         /// </summary>
         public Vector3 ResolveMove(Vector3 from, Vector3 to, float radiusNorm)
         {
-            if (!IsBlocked(to, radiusNorm))
+            if (!IsBlockedPath(from, to, radiusNorm))
             {
                 return ClampToWorld(to);
             }
 
             // 整步被挡：先试“只走左右”（沿墙滑）
             Vector3 xOnly = new Vector3(to.x, groundHeight, from.z);
-            if (!IsBlocked(xOnly, radiusNorm))
+            if (!IsBlockedPath(from, xOnly, radiusNorm))
             {
                 return ClampToWorld(xOnly);
             }
 
             // 再试“只走前后”
             Vector3 zOnly = new Vector3(from.x, groundHeight, to.z);
-            if (!IsBlocked(zOnly, radiusNorm))
+            if (!IsBlockedPath(from, zOnly, radiusNorm))
             {
                 return ClampToWorld(zOnly);
+            }
+
+            // 全被挡（夹在缝里）：按折半距离往目标蹭，至少能退出来
+            for (int i = 0; i < 3; i++)
+            {
+                float t = 0.5f / (1 << i);          // 0.5 → 0.25 → 0.125
+                Vector3 part = Vector3.Lerp(from, to, t);
+                part.y = groundHeight;
+                if (!IsBlockedPath(from, part, radiusNorm))
+                {
+                    return ClampToWorld(part);
+                }
             }
 
             return from;
