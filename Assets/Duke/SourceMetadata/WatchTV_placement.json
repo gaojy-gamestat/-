@@ -1,0 +1,16 @@
+{
+  "scene_image": "5b6cb150f678c001339d36177f854b5f.png",
+  "scene_size": [
+    2160,
+    1208
+  ],
+  "sprite_square_rect_px": [
+    934,
+    800,
+    130
+  ],
+  "rotation_degrees_counterclockwise": 0,
+  "scene_top_left_origin": true,
+  "occlusion": "原场景现有台灯的灯罩和支杆作为单独前景；仅用于叠放检查",
+  "seat": "窗下后方沙发，右侧座位"
+}
