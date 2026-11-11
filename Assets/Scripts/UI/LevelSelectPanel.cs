@@ -5,17 +5,27 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// 关卡选择面板控制器：9 个关卡按钮共用一个面板，点谁就把谁的数据填进来。
-/// 不需要为每个关卡各做一个面板 —— 面板只有一份，内容靠 Levels 数据切换。
+/// 关卡选择面板控制器：9 个关卡按钮共用一个面板，点谁就把谁的内容换上去。
+///
+/// 整图模式（推荐）：
+///   每个关卡的简介面板是一张预制好的整图（背景+分数+简介文字都画在图里）。
+///   在 Inspector 的 Intro Sprites（9 个槽位）里按第 1~9 关的顺序拖入 9 张图，
+///   点关卡按钮时，弹出的整个 Panel 的背景 Image 就直接换成对应的那张图
+///   （Intro Image 留空 = 替换 Panel 自身的背景；也可以手动拖一个 Image 过去），
+///   同时自动隐藏面板上旧版的文字内容和旧的预览图。
+///   开始/返回按钮叠在整图上面，逻辑不变：
+///     返回 → 关闭简介面板，回到关卡选择；开始 → 加载对应关卡场景。
+///
+/// 旧模式兜底：Intro Sprites 里某关没拖图时，那一关仍走 LevelData 的文字/预览图逻辑。
 ///
 /// 使用步骤：
-///   1. 把本脚本挂在 Canvas/Panel 上（Panel = 那个公共面板，里面有 左页/右页/开始/关闭/简介）。
+///   1. 把本脚本挂在 Canvas/Panel 上（Panel = 那个公共面板，里面有 开始/返回按钮）。
 ///   2. Panel Root 留空即可，默认就是脚本所在节点。
 ///   3. Level Buttons 可以手动拖入 9 个关卡按钮（顺序 = 第 1~9 关）；
 ///      留空时会自动从「关卡图」节点下按名字里的数字（1、2、3…）收集。
-///   4. 开始 → Enter Button，关闭/返回 → Exit Button，左页/右页 → Prev/Next Button。
-///   5. Levels 里依次填 9 组数据：关卡名 / 简介 / 预览图 / 要加载的场景名 sceneName
-///      （sceneName 必须是 Build Settings 里已加入的场景名）。
+///   4. 开始 → Enter Button，关闭/返回 → Exit Button。
+///   5. Intro Sprites 按顺序拖入 9 张预制简介图；Intro Image 留空即可（默认换 Panel 背景图）。
+///   6. Levels 里每关填 sceneName（点"开始"要加载的场景名，需已加入 Build Settings）。
 ///
 /// 面板初始保持激活即可，Awake 会自动把它藏起来，点按钮才打开。
 /// </summary>
@@ -33,7 +43,14 @@ public class LevelSelectPanel : MonoBehaviour
     [SerializeField]
     private GameObject panelRoot;
 
-    [Header("面板内容（旧版 UGUI Text 和 TextMeshPro 都可以拖）")]
+    [Header("整图模式：9 张预制简介图（按第 1~9 关的顺序拖入）")]
+    [SerializeField]
+    private Sprite[] introSprites = new Sprite[9];
+
+    [Header("整图模式：显示简介整图的 Image（留空 = 直接用 Panel 自身的背景 Image）")]
+    [SerializeField] private Image introImage;           // 整张简介图放这里
+
+    [Header("面板内容（旧版 UGUI Text 和 TextMeshPro 都可以拖；整图模式下会自动隐藏）")]
     [SerializeField] private Graphic levelIndexText;     // Level 1
     [SerializeField] private Graphic englishTitleText;   // 英文关卡名
     [SerializeField] private Graphic chineseTitleText;   // 中文关卡名
@@ -337,18 +354,59 @@ public class LevelSelectPanel : MonoBehaviour
 
     private void ApplyLevelData(int levelIndex, LevelData data)
     {
-        SetText(levelIndexText, string.IsNullOrEmpty(data.levelIndexText)
-            ? $"LEVEL {levelIndex + 1}"
-            : data.levelIndexText);
-        SetText(englishTitleText, data.englishTitle);
-        SetText(chineseTitleText, data.chineseTitle);
-        SetText(descriptionText, data.description);
-
-        if (previewImage != null)
+        // 整图模式：该关拖了预制简介图就直接换图，不再显示旧版文字。
+        Sprite intro = null;
+        if (introSprites != null && levelIndex >= 0 && levelIndex < introSprites.Length)
         {
-            previewImage.sprite = data.previewSprite;
-            // 没配预览图时隐藏图片，避免显示成一块白方块。
-            previewImage.enabled = data.previewSprite != null;
+            intro = introSprites[levelIndex];
+        }
+
+        // 目标 Image 的优先级：手动拖的 Intro Image → Panel 自身的背景 Image → 旧版预览图。
+        // 也就是说 Intro Image 留空时，弹出的整个面板背景就直接换成拖进来的简介图。
+        Image imageTarget = introImage;
+        if (imageTarget == null && panelRoot != null)
+        {
+            imageTarget = panelRoot.GetComponent<Image>();
+        }
+        if (imageTarget == null)
+        {
+            imageTarget = previewImage;
+        }
+
+        bool imageMode = intro != null && imageTarget != null;
+
+        if (imageTarget != null)
+        {
+            imageTarget.sprite = intro != null ? intro : data.previewSprite;
+            // 整图模式下没图时才隐藏；旧模式下面板背景本身要保留。
+            imageTarget.enabled = intro != null || data.previewSprite != null || imageTarget == introImage;
+        }
+
+        // 整图模式下隐藏旧版文字内容（分数/简介/标题都画在图里了）。
+        SetVisible(levelIndexText, !imageMode);
+        SetVisible(englishTitleText, !imageMode);
+        SetVisible(chineseTitleText, !imageMode);
+        SetVisible(descriptionText, !imageMode);
+
+        // 整图和预览图不是同一个 Image 时，旧预览图也要藏起来，避免叠在整图上。
+        if (imageMode && previewImage != null && previewImage != imageTarget)
+        {
+            previewImage.enabled = false;
+        }
+
+        if (!imageMode && intro == null && introSprites != null && introSprites.Length > 0)
+        {
+            Debug.LogWarning($"[LevelSelect] 第 {levelIndex + 1} 关的 Intro Sprites 槽位没有拖图，" +
+                             "已退回旧版文字模式。请按顺序把 9 张简介图拖进 Intro Sprites。");
+        }
+    }
+
+    /// <summary>显示/隐藏一个 Graphic（文本或图片）。</summary>
+    private static void SetVisible(Graphic graphic, bool visible)
+    {
+        if (graphic != null)
+        {
+            graphic.enabled = visible;
         }
     }
 

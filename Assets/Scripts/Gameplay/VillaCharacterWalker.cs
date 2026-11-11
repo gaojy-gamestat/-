@@ -161,7 +161,69 @@ namespace GameNet.Gameplay
             Move(input);
             PlayAnimation(input);
             CheckDoor();
+
+            // 调出生点用：Play 模式按 F9 打印当前图坐标，
+            // 把坐标填到 Inspector 的 Spawn Image Norm 里，下次就从那里出生。
+            if (Input.GetKeyDown(KeyCode.F9))
+            {
+                Debug.Log($"[角色] 当前图坐标 = ({ImageNorm.x:F3}, {ImageNorm.y:F3})。" +
+                          "把这个坐标填到 VillaCharacterWalker 的 Spawn Image Norm 里即可改出生点。");
+            }
         }
+
+        private void OnDrawGizmosSelected()
+        {
+            // 编辑器里选中角色时画一个亮黄色十字标记：
+            // Game 视图里角色被 Overlay 别墅图挡住看不见，靠这个在 Scene 视图里定位/摆放它。
+            Gizmos.color = new Color(1f, 0.92f, 0.1f, 1f);
+            Gizmos.DrawSphere(transform.position, 1.5f);
+            Gizmos.DrawLine(transform.position + Vector3.right * 6f, transform.position - Vector3.right * 6f);
+            Gizmos.DrawLine(transform.position + Vector3.up * 6f, transform.position - Vector3.up * 6f);
+
+#if UNITY_EDITOR
+            // 青色标记 = Play 后真正的出生点。
+            // 编辑态的黄色位置只是"物体摆在哪"，Play 会重新计算出生点
+            //（摆在地板外/压着碰撞框时会被换到 spawnImageNorm 或地板中心），
+            // 所以黄色和青色不重合是正常的——以青色为准。
+            DrawSpawnPreviewGizmo();
+#endif
+        }
+
+#if UNITY_EDITOR
+        /// <summary>编辑态预览：算出 Play 时真正的出生位置并画出来。</summary>
+        private void DrawSpawnPreviewGizmo()
+        {
+            if (Application.isPlaying)
+            {
+                return;
+            }
+
+            VillaRoomBuilder r = room != null ? room : FindObjectOfType<VillaRoomBuilder>();
+            if (r == null)
+            {
+                return;
+            }
+
+            // 编辑态 Rebuild 是安全的（右键菜单"把角色放到出生点"就是这么做的），
+            // 碰撞体只在 Play 模式创建，不会写进场景文件。
+            if (!r.IsReady)
+            {
+                r.Rebuild();
+            }
+
+            if (!r.IsReady)
+            {
+                return;
+            }
+
+            Vector2 spawnNorm = GetStartImageNorm();
+            Vector3 p = r.ImageNormToGround(spawnNorm);
+
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawSphere(p, 1.5f);
+            Gizmos.DrawLine(p + Vector3.up * 0.5f, p + Vector3.up * 8f);
+        }
+#endif
 
         private void LateUpdate()
         {
