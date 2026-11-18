@@ -64,6 +64,11 @@ namespace GameNet.Gameplay
             public float staySeconds = 10f;
             [Tooltip("动作画面的对齐点在 sprite 里的位置（0~1，左下为原点）。(-1,-1) = 按动作自动取默认。")]
             public Vector2 anchorInFrame = new Vector2(-1f, -1f);
+            [Header("从上一站走到这里")]
+            [Tooltip("这一段步行总时长。行走速度按路线长度自动计算。")]
+            [Min(0.1f)] public float travelSeconds = 5f;
+            [Tooltip("归一化别墅图路点（左上为原点），按顺序填写。经过配对 VillaDoor 时会使用门传送。")]
+            public List<Vector2> routePoints = new List<Vector2>();
         }
 
         [Header("依赖（留空自动找）")]
@@ -72,6 +77,8 @@ namespace GameNet.Gameplay
         [Tooltip("旧版单一地面（没搭房间区域时的兼容路径）。留空自动找。")]
         public VillaGroundPlane ground;
         public Camera targetCamera;
+        [Tooltip("可选：倒计时结束时停止巡逻；留空自动查找。")]
+        public CountdownSystem countdownSystem;
 
         [Header("巡逻路线（按顺序走，走完最后一站回到第一站循环）")]
         public List<PatrolStop> stops = new List<PatrolStop>
@@ -80,7 +87,43 @@ namespace GameNet.Gameplay
             {
                 stopName = "客厅沙发看电视",
                 action = DukeAction.WatchTV,
-                staySeconds = 12f,
+                staySeconds = 15f,
+                imageNorm = new Vector2(0.463f, 0.716f),
+                travelSeconds = 5f,
+                routePoints = new List<Vector2>
+                {
+                    new Vector2(0.596f, 0.660f), // 主卧门
+                    new Vector2(0.595f, 0.770f), // 走廊中段
+                    new Vector2(0.562f, 0.744f), // 走廊左门
+                },
+            },
+            new PatrolStop
+            {
+                stopName = "厨房餐台吃东西",
+                action = DukeAction.Eat,
+                staySeconds = 15f,
+                travelSeconds = 5f,
+                imageNorm = new Vector2(0.849f, 0.769f),
+                routePoints = new List<Vector2>
+                {
+                    new Vector2(0.543f, 0.762f),
+                    new Vector2(0.595f, 0.770f),
+                    new Vector2(0.631f, 0.745f),
+                },
+            },
+            new PatrolStop
+            {
+                stopName = "一楼主卧休息",
+                action = DukeAction.Sleep,
+                staySeconds = 15f,
+                travelSeconds = 5f,
+                imageNorm = new Vector2(0.596f, 0.700f),
+                routePoints = new List<Vector2>
+                {
+                    new Vector2(0.656f, 0.762f),
+                    new Vector2(0.602f, 0.770f),
+                    new Vector2(0.596f, 0.760f),
+                },
             },
         };
 
@@ -127,6 +170,12 @@ namespace GameNet.Gameplay
         private enum Phase { Acting, Walking }
         private Phase _phase = Phase.Acting;
         private float _phaseTimer;
+        private float _walkTimer;
+        private float _walkDuration;
+        private float _walkSpeed;
+        private readonly List<Vector2> _activePath = new List<Vector2>();
+        private int _activePathIndex;
+        private float _lastDoorTime = -10f;
         private string _currentAnim;
 
         /// <summary>杜克当前在别墅图上的归一化坐标（0~1，左上为原点）。</summary>
@@ -150,7 +199,24 @@ namespace GameNet.Gameplay
                 _spriteRenderer.sortingOrder = sortingOrder;
             }
 
+            if (countdownSystem == null)
+            {
+                countdownSystem = FindObjectOfType<CountdownSystem>();
+            }
+            if (countdownSystem != null)
+            {
+                countdownSystem.OnTimeUp += HandleTimeUp;
+            }
+
             TryInit();
+        }
+
+        private void OnDestroy()
+        {
+            if (countdownSystem != null)
+            {
+                countdownSystem.OnTimeUp -= HandleTimeUp;
+            }
         }
 
         private void Update()
@@ -234,35 +300,108 @@ namespace GameNet.Gameplay
             _phaseTimer += Time.deltaTime;
             if (_phaseTimer >= Mathf.Max(0.1f, stop.staySeconds))
             {
-                // 去下一站（循环）
-                _stopIndex = (_stopIndex + 1) % stops.Count;
-                _phase = Phase.Walking;
-                PlayAnim(PickWalkAnim(StopNorm(stops[_stopIndex])));
+                BeginWalking((_stopIndex + 1) % stops.Count);
             }
         }
 
         private void UpdateWalking()
         {
-            PatrolStop stop = CurrentStop();
-            if (stop == null)
+            PatrolStop destination = CurrentStop();
+            if (destination == null)
             {
                 return;
             }
 
-            Vector3 target = ToGround(StopNorm(stop));
-            float step = SpeedWorld() * Time.deltaTime;
-            transform.position = Vector3.MoveTowards(transform.position, target, step);
-
-            // 路上随时按方向换行走动画（走过弯了就换朝向）
-            string walk = PickWalkAnim(StopNorm(stop));
-            PlayAnim(walk);
-
-            float arriveGap = 0.02f * RefWidth();
-            if ((target - transform.position).sqrMagnitude <= arriveGap * arriveGap)
+            _walkTimer += Time.deltaTime;
+            if (_activePathIndex < _activePath.Count)
             {
-                transform.position = target;
+                Vector2 point = _activePath[_activePathIndex];
+                Vector3 target = ToGround(point);
+                transform.position = Vector3.MoveTowards(transform.position, target, _walkSpeed * Time.deltaTime);
+                PlayAnim(PickWalkAnim(point));
+
+                float arriveGap = 0.0025f * RefWidth();
+                if ((target - transform.position).sqrMagnitude <= arriveGap * arriveGap)
+                {
+                    transform.position = target;
+                    TraverseDoorAtCurrentPosition();
+                    _activePathIndex++;
+                }
+            }
+
+            if (_walkTimer >= _walkDuration && _activePathIndex >= _activePath.Count)
+            {
+                transform.position = ToGround(StopNorm(destination));
                 EnterStop(_stopIndex);
             }
+        }
+
+        private void BeginWalking(int destinationIndex)
+        {
+            _stopIndex = destinationIndex;
+            PatrolStop destination = CurrentStop();
+            if (destination == null)
+            {
+                return;
+            }
+
+            _phase = Phase.Walking;
+            _walkTimer = 0f;
+            _walkDuration = Mathf.Max(0.1f, destination.travelSeconds);
+            _activePath.Clear();
+            if (destination.routePoints != null)
+            {
+                for (int i = 0; i < destination.routePoints.Count; i++)
+                {
+                    _activePath.Add(VillaZoneBase.SanitizeNorm(destination.routePoints[i]));
+                }
+            }
+
+            Vector2 finalPoint = StopNorm(destination);
+            if (_activePath.Count == 0 || Vector2.Distance(_activePath[_activePath.Count - 1], finalPoint) > 0.001f)
+            {
+                _activePath.Add(finalPoint);
+            }
+
+            _activePathIndex = 0;
+            float pathLength = CalculateWalkPathLength();
+            _walkSpeed = Mathf.Max(0.001f, pathLength / _walkDuration);
+            PlayAnim(PickWalkAnim(_activePath[0]));
+        }
+
+        private float CalculateWalkPathLength()
+        {
+            Vector3 cursor = transform.position;
+            float total = 0f;
+            for (int i = 0; i < _activePath.Count; i++)
+            {
+                Vector3 point = ToGround(_activePath[i]);
+                total += Vector3.Distance(cursor, point);
+                VillaDoor door = room != null && room.IsReady ? room.FindDoorAt(point) : null;
+                cursor = door != null && door.IsPaired
+                    ? ToGround(door.GetSpawnImageNorm())
+                    : point;
+            }
+
+            return total;
+        }
+
+        private void TraverseDoorAtCurrentPosition()
+        {
+            if (room == null || !room.IsReady)
+            {
+                return;
+            }
+
+            VillaDoor door = room.FindDoorAt(transform.position);
+            if (door == null || !door.IsPaired ||
+                Time.time - _lastDoorTime < Mathf.Max(0f, door.retriggerCooldown))
+            {
+                return;
+            }
+
+            transform.position = ToGround(door.GetSpawnImageNorm());
+            _lastDoorTime = Time.time;
         }
 
         /// <summary>到达一站：切回“播动作”阶段。</summary>
@@ -278,6 +417,11 @@ namespace GameNet.Gameplay
                 PlayAnim(ActionState(stop.action));
                 Debug.Log($"[杜克巡逻] 到达「{stop.stopName}」，播放 {stop.action}，停留 {stop.staySeconds:F1} 秒。");
             }
+        }
+
+        private void HandleTimeUp()
+        {
+            StopPatrol();
         }
 
         private PatrolStop CurrentStop()
