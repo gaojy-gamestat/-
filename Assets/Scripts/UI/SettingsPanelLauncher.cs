@@ -259,17 +259,20 @@ namespace GameNet.UI
 
         private static Transform EnsureCanvas()
         {
+            // 用专用顶层 Canvas，不复用场景里的 HUD Canvas。
+            // 场景 Canvas 排序值只有 20，且游戏中还有排序值 200/400 的运行时 Canvas，
+            // 面板挂在那里会被盖住或被别的 GraphicRaycaster 抢走点击，表现为按钮点不动、滑条拖不动。
             Canvas canvas = Object.FindObjectOfType<Canvas>();
-            if (canvas != null)
+            if (canvas != null && canvas.gameObject.name == "SettingsCanvas")
             {
                 EnsureEventSystem();
                 return canvas.transform;
             }
 
-            GameObject go = new GameObject("SettingsCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            GameObject go = new GameObject("SettingsCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 500;
+            canvas.sortingOrder = 1000; // 高于主菜单 200、时间到面板 400，保证永远在最前
 
             CanvasScaler scaler = go.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;

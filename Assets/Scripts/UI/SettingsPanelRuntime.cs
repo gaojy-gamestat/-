@@ -14,7 +14,6 @@ namespace GameNet.UI
         private Slider m_Music;
         private Slider m_Sfx;
         private bool m_Bound;
-        private float m_PreviousTimeScale = 1f;
 
         /// <summary>接线。返回 false 表示这个面板缺少音量条（调用方会换用简易面板）。</summary>
         public bool Bind()
@@ -33,6 +32,16 @@ namespace GameNet.UI
             Button close = FindButton("Btn_Close");
             if (close != null) close.onClick.AddListener(Hide);
 
+            // 文字层（标题、三行标签）默认 raycastTarget=1，会盖在滑条上抢走拖动事件。
+            // 只关掉文字的射线目标；图片（滑条轨道/把手、按钮底图、面板遮罩）全部保留。
+            foreach (Graphic graphic in GetComponentsInChildren<Graphic>(true))
+            {
+                if (!(graphic is Image)) graphic.raycastTarget = false;
+            }
+            if (m_Master != null) m_Master.interactable = true;
+            if (m_Music != null) m_Music.interactable = true;
+            if (m_Sfx != null) m_Sfx.interactable = true;
+
             GameAudioSettings.Changed += Refresh;
             Refresh();
 
@@ -45,16 +54,14 @@ namespace GameNet.UI
             transform.SetAsLastSibling();
             Refresh();
 
-            // 打开面板时暂停游戏世界，避免一边调音量一边还能操作角色；
-            // 关掉面板时恢复原来的时间流速（比如「时间到」面板本来就是 0）。
-            m_PreviousTimeScale = Time.timeScale;
-            Time.timeScale = 0f;
+            // 不冻结 Time.timeScale：结算面板本来就会把它设为 0，
+            // 这里再改一次会把「恢复时间」的值记错，导致回到关卡后画面一直卡住。
+            // 调音量时是否暂停由游戏本身决定，设置面板不插手。
         }
 
         public void Hide()
         {
             gameObject.SetActive(false);
-            Time.timeScale = m_PreviousTimeScale;
         }
 
         private void Update()
@@ -65,9 +72,6 @@ namespace GameNet.UI
         private void OnDestroy()
         {
             GameAudioSettings.Changed -= Refresh;
-
-            // 只有面板正开着的时候才是我们暂停的，销毁时要把时间流速还回去。
-            if (gameObject.activeSelf) Time.timeScale = m_PreviousTimeScale;
         }
 
         private void Refresh()
