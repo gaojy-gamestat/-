@@ -5,6 +5,7 @@ using UnityEngine.UI;
 namespace GameNet.Gameplay
 {
     // 只绘制家具朝向镜头的边缘，让坐下/躺下的人物进入家具前后两层之间。
+    [RequireComponent(typeof(CanvasRenderer))]
     [DefaultExecutionOrder(200)]
     public sealed class DukeFurnitureForeground : MaskableGraphic
     {
@@ -35,10 +36,10 @@ namespace GameNet.Gameplay
         void LateUpdate()
         {
             if (character == null) return;
-            Canvas characterCanvas = character.GetComponent<Canvas>();
             if (ownCanvas == null) ownCanvas = gameObject.AddComponent<Canvas>();
             ownCanvas.overrideSorting = true;
-            ownCanvas.sortingOrder = characterCanvas != null ? characterCanvas.sortingOrder + 1 : -99;
+            // 家具前缘覆盖人物，仍在现有 HUD（0）下面。
+            ownCanvas.sortingOrder = -1;
         }
 
         protected override void OnPopulateMesh(VertexHelper vh)

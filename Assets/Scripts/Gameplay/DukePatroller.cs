@@ -87,7 +87,7 @@ namespace GameNet.Gameplay
         {
             new PatrolStop { stopName = "客厅沙发看电视", action = DukeAction.WatchTV,
                 staySeconds = 10f, travelSeconds = 10f,
-                imageNorm = new Vector2(0.519f, 0.790f), activityNorm = new Vector2(0.514f, 0.724f),
+                imageNorm = new Vector2(0.519f, 0.790f), activityNorm = new Vector2(0.516f, 0.730f),
                 routePoints = new List<Vector2> { new Vector2(0.623f, 0.512f), new Vector2(0.614f, 0.478f),
                     new Vector2(0.595f, 0.790f), new Vector2(0.563f, 0.780f),
                     new Vector2(0.519f, 0.802f) } },
@@ -698,7 +698,7 @@ namespace GameNet.Gameplay
             _mirrorRt.localScale = Vector3.one;
             _mirrorImage.preserveAspect = true;
 
-            var foreground = new GameObject("Duke家具前缘", typeof(RectTransform), typeof(DukeFurnitureForeground));
+            var foreground = new GameObject("Duke家具前缘", typeof(RectTransform), typeof(CanvasRenderer), typeof(DukeFurnitureForeground));
             foreground.hideFlags = HideFlags.DontSave;
             var frontRt = (RectTransform)foreground.transform;
             frontRt.SetParent(host, false);
@@ -799,7 +799,7 @@ namespace GameNet.Gameplay
         {
             switch (action)
             {
-                case DukeAction.WatchTV: return new Vector2(0.54980469f, 0.32031250f); // 座位/骨盆
+                case DukeAction.WatchTV: return new Vector2(0.79f, 0.36f); // 后侧臀部接触座垫，不能用两腿之间的中心点
                 case DukeAction.Eat:     return new Vector2(0.60546875f, 0.07714844f); // 脚底
                 case DukeAction.Sleep:   return new Vector2(0.5f, 0.47265625f);        // 床中央
                 default: return new Vector2(0.5f, 0.07421875f);
