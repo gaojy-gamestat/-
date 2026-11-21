@@ -4846,6 +4846,7 @@ GameObject:
   - component: {fileID: 3100000203}
   - component: {fileID: 3100000204}
   - component: {fileID: 3100000205}
+  - component: {fileID: 3100000206}
   m_Layer: 0
   m_Name: Duke
   m_TagString: Untagged
@@ -5017,6 +5018,31 @@ MonoBehaviour:
   scaleByDepth: 0
   sortingOrder: 10
   enableDebugLog: 1
+--- !u!114 &3100000206
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3100000200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 145aee9a385e4c09abb005c37344e1ac, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  duke: {fileID: 3100000205}
+  anger: {fileID: 560793956}
+  tasks: {fileID: 560793958}
+  countdown: {fileID: 560793957}
+  font: {fileID: 11400000, guid: 79c6b141d5a389944a89b6d558f837c2, type: 2}
+  prankAnger: 35
+  eatCalmPerSecond: 0.5
+  sleepCalmPerSecond: 1
+  prankTaskIds:
+  - prank
+  prankPosition: {x: 0.847, y: 0.785}
+  interactRadius: 0.035
+  contactRadius: {x: 0.024, y: 0.022}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

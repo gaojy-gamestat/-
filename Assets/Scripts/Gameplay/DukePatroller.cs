@@ -168,6 +168,19 @@ namespace GameNet.Gameplay
 
         /// <summary>杜克脚底/对齐点的世界坐标。</summary>
         public Vector3 WorldPosition { get { return transform.position; } }
+        private bool _suspended;
+        public bool IsReady => _ready;
+        public bool IsActing => _phase == Phase.Acting && !_suspended;
+        public DukeAction CurrentActivity => CurrentStop() != null ? CurrentStop().action : DukeAction.WatchTV;
+        public Vector2 WorldToArtworkNorm(Vector3 world) => ToNorm(world);
+        public Vector2 EncounterImageNorm => _phase == Phase.Acting && CurrentStop() != null
+            && CurrentStop().activityNorm.x >= 0f ? CurrentStop().activityNorm : ImageNorm;
+        public void SuspendPatrol()
+        {
+            _suspended = true;
+            if (_animator != null) _animator.speed = 0f;
+        }
+
 
         // ------------------------------------------------------------------
         // 生命周期
@@ -207,6 +220,8 @@ namespace GameNet.Gameplay
             {
                 return;
             }
+
+            if (_suspended) return;
 
             if (enableDebugLog && Input.GetKeyDown(KeyCode.F9))
             {

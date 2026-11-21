@@ -107,6 +107,8 @@ namespace GameNet.Gameplay
 
         /// <summary>角色脚底的世界坐标（地面上的真实位置）。</summary>
         public Vector3 FeetWorldPosition { get { return transform.position; } }
+        public bool IsMovementSuspended { get; private set; }
+        public void SuspendMovement() => IsMovementSuspended = true;
 
         /// <summary>角色目前在别墅图上的归一化坐标（0~1，左上为原点）。</summary>
         public Vector2 ImageNorm
@@ -135,6 +137,7 @@ namespace GameNet.Gameplay
 
         private void Update()
         {
+            if (IsMovementSuspended) return;
             if (!_ready && !TryInit())
             {
                 return;
