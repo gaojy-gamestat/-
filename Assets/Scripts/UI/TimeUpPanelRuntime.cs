@@ -21,6 +21,25 @@ namespace GameNet.UI
         private CountdownSystem m_Source;
         private GameObject m_Panel;
         private bool m_Shown;
+        private string m_Title = "时间到！";
+        private string m_Hint = "这次没能在时间内完成，再来一次？";
+        private TMP_FontAsset m_Font;
+
+        public static void ShowCaught(TMP_FontAsset font)
+        {
+            var runtime = Object.FindObjectOfType<TimeUpPanelRuntime>();
+            if (runtime == null)
+            {
+                runtime = new GameObject("[CaughtPanelRuntime]").AddComponent<TimeUpPanelRuntime>();
+                var source = Object.FindObjectOfType<CountdownSystem>();
+                if (source != null) runtime.Bind(source);
+            }
+            if (runtime.m_Shown) return;
+            runtime.m_Title = "被 Duke 抓住了！";
+            runtime.m_Hint = "这次和房主撞了个正着。观察他的路线，再试一次吧。";
+            runtime.m_Font = font;
+            runtime.HandleTimeUp();
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Init()
@@ -39,6 +58,7 @@ namespace GameNet.UI
         {
             // 已经有人手工接好正式面板了，就不用临时的。
             if (Object.FindObjectOfType<TimeUpPanelController>() != null) return;
+            if (Object.FindObjectOfType<TimeUpPanelRuntime>() != null) return;
 
             CountdownSystem source = Object.FindObjectOfType<CountdownSystem>(true);
             if (source == null) return;
@@ -51,6 +71,8 @@ namespace GameNet.UI
         private void Bind(CountdownSystem source)
         {
             m_Source = source;
+            var gameplay = Object.FindObjectOfType<Level01DukeGameplay>();
+            if (gameplay != null) m_Font = gameplay.font;
             m_Source.OnTimeUp += HandleTimeUp;
         }
 
@@ -64,6 +86,8 @@ namespace GameNet.UI
         {
             if (m_Shown) return;
             m_Shown = true;
+            foreach (var room in Object.FindObjectsOfType<VillaRoomBuilder>())
+                room.showProjectedWireframe = false;
 
             if (m_Panel == null) m_Panel = BuildPanel();
             m_Panel.SetActive(true);
@@ -103,14 +127,14 @@ namespace GameNet.UI
             Image windowImage = window.AddComponent<Image>();
             windowImage.color = new Color(0.12f, 0.07f, 0.05f, 0.96f);
 
-            TextMeshProUGUI title = CreateLabel(window.transform, "时间到！", 96f);
+            TextMeshProUGUI title = CreateLabel(window.transform, m_Title, 72f);
             title.rectTransform.anchorMin = new Vector2(0f, 1f);
             title.rectTransform.anchorMax = new Vector2(1f, 1f);
             title.rectTransform.pivot = new Vector2(0.5f, 1f);
             title.rectTransform.anchoredPosition = new Vector2(0f, -70f);
             title.rectTransform.sizeDelta = new Vector2(-80f, 140f);
 
-            TextMeshProUGUI hint = CreateLabel(window.transform, "这次没能在时间内完成，再来一次？", 36f);
+            TextMeshProUGUI hint = CreateLabel(window.transform, m_Hint, 32f);
             hint.color = new Color(0.85f, 0.82f, 0.78f, 1f);
             hint.rectTransform.anchorMin = new Vector2(0f, 0.5f);
             hint.rectTransform.anchorMax = new Vector2(1f, 0.5f);
@@ -156,10 +180,11 @@ namespace GameNet.UI
             rect.offsetMax = Vector2.zero;
         }
 
-        private static TextMeshProUGUI CreateLabel(Transform parent, string text, float fontSize)
+        private TextMeshProUGUI CreateLabel(Transform parent, string text, float fontSize)
         {
             GameObject go = CreateUiObject("Label", parent);
             TextMeshProUGUI label = go.AddComponent<TextMeshProUGUI>();
+            if (m_Font != null) label.font = m_Font;
             label.text = text;
             label.fontSize = fontSize;
             label.alignment = TextAlignmentOptions.Center;
@@ -168,7 +193,7 @@ namespace GameNet.UI
             return label;
         }
 
-        private static void CreateButton(Transform parent, string text, Vector2 position, UnityEngine.Events.UnityAction onClick)
+        private void CreateButton(Transform parent, string text, Vector2 position, UnityEngine.Events.UnityAction onClick)
         {
             GameObject go = CreateUiObject("Btn_" + text, parent);
             RectTransform rect = go.GetComponent<RectTransform>();

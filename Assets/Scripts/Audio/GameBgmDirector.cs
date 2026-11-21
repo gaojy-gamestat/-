@@ -167,6 +167,8 @@ namespace GameNet.Audio
         // ------------------------------------------------------------------
         // 游戏事件
         // ------------------------------------------------------------------
+        public void NotifyPlayerCaught() => HandleTimeUp();
+
         private void HandleTimeUp()
         {
             if (m_OutcomeLocked) return;

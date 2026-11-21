@@ -57,6 +57,8 @@ namespace GameNet.Gameplay
 
             [Tooltip("不拖 Floor Area 时直接用这个图坐标（0~1，左上为原点）。")]
             public Vector2 imageNorm = new Vector2(0.5f, 0.8f);
+            [Tooltip("动作显示位置；负值使用行走落点。坐下/躺下时与可行走的接近点分开。") ]
+            public Vector2 activityNorm = new Vector2(-1f, -1f);
 
             [Header("到达后做什么")]
             public DukeAction action = DukeAction.WatchTV;
@@ -66,7 +68,7 @@ namespace GameNet.Gameplay
             public Vector2 anchorInFrame = new Vector2(-1f, -1f);
             [Header("从上一站走到这里")]
             [Tooltip("这一段步行总时长。行走速度按路线长度自动计算。")]
-            [Min(0.1f)] public float travelSeconds = 5f;
+            [Min(0.1f)] public float travelSeconds = 10f;
             [Tooltip("归一化别墅图路点（左上为原点），按顺序填写。经过配对 VillaDoor 时会使用门传送。")]
             public List<Vector2> routePoints = new List<Vector2>();
         }
@@ -83,53 +85,32 @@ namespace GameNet.Gameplay
         [Header("巡逻路线（按顺序走，走完最后一站回到第一站循环）")]
         public List<PatrolStop> stops = new List<PatrolStop>
         {
-            new PatrolStop
-            {
-                stopName = "客厅沙发看电视",
-                action = DukeAction.WatchTV,
-                staySeconds = 15f,
-                imageNorm = new Vector2(0.463f, 0.716f),
-                travelSeconds = 5f,
-                routePoints = new List<Vector2>
-                {
-                    new Vector2(0.596f, 0.660f), // 主卧门
-                    new Vector2(0.595f, 0.770f), // 走廊中段
-                    new Vector2(0.562f, 0.744f), // 走廊左门
-                },
-            },
-            new PatrolStop
-            {
-                stopName = "厨房餐台吃东西",
-                action = DukeAction.Eat,
-                staySeconds = 15f,
-                travelSeconds = 5f,
-                imageNorm = new Vector2(0.849f, 0.769f),
-                routePoints = new List<Vector2>
-                {
-                    new Vector2(0.543f, 0.762f),
-                    new Vector2(0.595f, 0.770f),
-                    new Vector2(0.631f, 0.745f),
-                },
-            },
-            new PatrolStop
-            {
-                stopName = "一楼主卧休息",
-                action = DukeAction.Sleep,
-                staySeconds = 15f,
-                travelSeconds = 5f,
-                imageNorm = new Vector2(0.596f, 0.700f),
-                routePoints = new List<Vector2>
-                {
-                    new Vector2(0.656f, 0.762f),
-                    new Vector2(0.602f, 0.770f),
-                    new Vector2(0.596f, 0.760f),
-                },
-            },
+            new PatrolStop { stopName = "客厅沙发看电视", action = DukeAction.WatchTV,
+                staySeconds = 10f, travelSeconds = 10f,
+                imageNorm = new Vector2(0.519f, 0.790f), activityNorm = new Vector2(0.516f, 0.730f),
+                routePoints = new List<Vector2> { new Vector2(0.623f, 0.512f), new Vector2(0.614f, 0.478f),
+                    new Vector2(0.595f, 0.790f), new Vector2(0.563f, 0.780f),
+                    new Vector2(0.519f, 0.802f) } },
+            new PatrolStop { stopName = "厨房餐桌右侧吃饭", action = DukeAction.Eat,
+                staySeconds = 10f, travelSeconds = 10f,
+                imageNorm = new Vector2(0.847f, 0.785f),
+                routePoints = new List<Vector2> { new Vector2(0.543f, 0.780f),
+                    new Vector2(0.595f, 0.790f), new Vector2(0.631f, 0.780f),
+                    new Vector2(0.690f, 0.815f), new Vector2(0.840f, 0.815f) } },
+            new PatrolStop { stopName = "主卧床上睡觉", action = DukeAction.Sleep,
+                staySeconds = 10f, travelSeconds = 10f,
+                imageNorm = new Vector2(0.642f, 0.512f), activityNorm = new Vector2(0.690f, 0.474f),
+                routePoints = new List<Vector2> { new Vector2(0.840f, 0.815f),
+                    new Vector2(0.690f, 0.815f), new Vector2(0.656f, 0.780f),
+                    new Vector2(0.596f, 0.730f), new Vector2(0.596f, 0.690f),
+                    new Vector2(0.623f, 0.512f) } },
         };
 
         [Header("移动")]
         [Tooltip("步行速度：每秒走过「参考地板宽度」的百分之几（和玩家的 speedInFloorWidths 同一套换算）。")]
-        public float speedInFloorWidths = 0.2f;
+        public float speedInFloorWidths = 0.25f;
+        [Tooltip("与家具边缘保持的图片归一化间距。") ]
+        [Min(0.001f)] public float clearanceNorm = 0.004f;
         [Tooltip("换算移动方向用的坐标差阈值（图坐标）。小于它不算换了方向。")]
         public float directionThreshold = 0.004f;
 
@@ -143,7 +124,7 @@ namespace GameNet.Gameplay
 
         [Header("显示")]
         [Tooltip("杜克显示高度 = 别墅图高度的百分之多少（也可以改 Transform 缩放叠加微调）。")]
-        [Range(0.02f, 1f)] public float heightRatioOfVilla = 0.16f;
+        [Range(0.02f, 1f)] public float heightRatioOfVilla = 0.115f;
         [Tooltip("按透视远近缩放：走近镜头变大、走远变小。")]
         public bool scaleByDepth = true;
         [Tooltip("杜克 sprite 的 Sorting Order（世界空间画法时用；镜像排序由 VillaDepthSorter 管）。")]
@@ -162,6 +143,7 @@ namespace GameNet.Gameplay
 
         private RectTransform _mirrorRt;
         private Image _mirrorImage;
+        private DukeFurnitureForeground _furnitureForeground;
         private bool _mirrorReady;
 
         private bool _ready;
@@ -186,6 +168,19 @@ namespace GameNet.Gameplay
 
         /// <summary>杜克脚底/对齐点的世界坐标。</summary>
         public Vector3 WorldPosition { get { return transform.position; } }
+        private bool _suspended;
+        public bool IsReady => _ready;
+        public bool IsActing => _phase == Phase.Acting && !_suspended;
+        public DukeAction CurrentActivity => CurrentStop() != null ? CurrentStop().action : DukeAction.WatchTV;
+        public Vector2 WorldToArtworkNorm(Vector3 world) => ToNorm(world);
+        public Vector2 EncounterImageNorm => _phase == Phase.Acting && CurrentStop() != null
+            && CurrentStop().activityNorm.x >= 0f ? CurrentStop().activityNorm : ImageNorm;
+        public void SuspendPatrol()
+        {
+            _suspended = true;
+            if (_animator != null) _animator.speed = 0f;
+        }
+
 
         // ------------------------------------------------------------------
         // 生命周期
@@ -225,6 +220,8 @@ namespace GameNet.Gameplay
             {
                 return;
             }
+
+            if (_suspended) return;
 
             if (enableDebugLog && Input.GetKeyDown(KeyCode.F9))
             {
@@ -317,10 +314,18 @@ namespace GameNet.Gameplay
             {
                 Vector2 point = _activePath[_activePathIndex];
                 Vector3 target = ToGround(point);
-                transform.position = Vector3.MoveTowards(transform.position, target, _walkSpeed * Time.deltaTime);
-                PlayAnim(PickWalkAnim(point));
+                Vector3 next = Vector3.MoveTowards(transform.position, target, _walkSpeed * Time.deltaTime);
+                // 路线必须绕开障碍；被新家具挡住时停下并报告，不能穿过去或跳到终点。
+                if (room != null && room.IsBlockedPath(CollisionPoint(transform.position), CollisionPoint(next), clearanceNorm))
+                {
+                    Debug.LogError($"[杜克巡逻] 路线被家具阻挡：{destination.stopName}，路点 {_activePathIndex}，图坐标 {ImageNorm}。", this);
+                    enabled = false;
+                    return;
+                }
+                transform.position = next;
+                if ((target - transform.position).sqrMagnitude > 0.000001f) PlayAnim(PickWalkAnim(point));
 
-                float arriveGap = 0.0025f * RefWidth();
+                float arriveGap = 0.00001f * RefWidth();
                 if ((target - transform.position).sqrMagnitude <= arriveGap * arriveGap)
                 {
                     transform.position = target;
@@ -365,7 +370,7 @@ namespace GameNet.Gameplay
 
             _activePathIndex = 0;
             float pathLength = CalculateWalkPathLength();
-            _walkSpeed = Mathf.Max(0.001f, pathLength / _walkDuration);
+            _walkSpeed = Mathf.Max(0.001f, Mathf.Min(pathLength / _walkDuration, SpeedWorld()));
             PlayAnim(PickWalkAnim(_activePath[0]));
         }
 
@@ -377,7 +382,7 @@ namespace GameNet.Gameplay
             {
                 Vector3 point = ToGround(_activePath[i]);
                 total += Vector3.Distance(cursor, point);
-                VillaDoor door = room != null && room.IsReady ? room.FindDoorAt(point) : null;
+                VillaDoor door = room != null && room.IsReady ? room.FindDoorAt(CollisionPoint(point)) : null;
                 cursor = door != null && door.IsPaired
                     ? ToGround(door.GetSpawnImageNorm())
                     : point;
@@ -393,7 +398,7 @@ namespace GameNet.Gameplay
                 return;
             }
 
-            VillaDoor door = room.FindDoorAt(transform.position);
+            VillaDoor door = room.FindDoorAt(CollisionPoint(transform.position));
             if (door == null || !door.IsPaired ||
                 Time.time - _lastDoorTime < Mathf.Max(0f, door.retriggerCooldown))
             {
@@ -571,7 +576,9 @@ namespace GameNet.Gameplay
         {
             if (room != null && room.IsReady)
             {
-                return room.GroundToImageNorm(world);
+                Vector2 rectNorm = room.GroundToImageNorm(world);
+                Rect art = ArtworkRect();
+                return new Vector2((rectNorm.x - art.x) / art.width, (rectNorm.y - art.y) / art.height);
             }
 
             if (ground != null && ground.IsReady)
@@ -586,7 +593,8 @@ namespace GameNet.Gameplay
         {
             if (room != null && room.IsReady)
             {
-                return room.ImageNormToGround(norm);
+                Rect art = ArtworkRect();
+                return room.ImageNormToGround(new Vector2(art.x + norm.x * art.width, art.y + norm.y * art.height));
             }
 
             if (ground != null && ground.IsReady)
@@ -595,6 +603,26 @@ namespace GameNet.Gameplay
             }
 
             return transform.position;
+        }
+
+        // Image.preserveAspect 会在 RectTransform 内留白，路点坐标以实际图像为准。
+        private Rect ArtworkRect()
+        {
+            if (_villaImage == null || !_villaImage.preserveAspect || _villaImage.sprite == null)
+                return new Rect(0f, 0f, 1f, 1f);
+            Rect rect = _villaImage.rectTransform.rect;
+            float spriteAspect = _villaImage.sprite.rect.width / _villaImage.sprite.rect.height;
+            float rectAspect = rect.width / Mathf.Max(1f, rect.height);
+            float width = Mathf.Min(1f, spriteAspect / rectAspect);
+            float height = Mathf.Min(1f, rectAspect / spriteAspect);
+            Vector2 pivot = _villaImage.rectTransform.pivot;
+            return new Rect((1f - width) * pivot.x, (1f - height) * (1f - pivot.y), width, height);
+        }
+
+        // 现有区域的 Corners 存储的是图像坐标；在该坐标系内复用家具与门判定。
+        private Vector3 CollisionPoint(Vector3 world)
+        {
+            return room.ImageNormToGround(ToNorm(world));
         }
 
         /// <summary>参考宽度（世界单位）：优先房间系统的参考地板宽度，否则退回地面宽度。</summary>
@@ -685,6 +713,15 @@ namespace GameNet.Gameplay
             _mirrorRt.localScale = Vector3.one;
             _mirrorImage.preserveAspect = true;
 
+            var foreground = new GameObject("Duke家具前缘", typeof(RectTransform), typeof(CanvasRenderer), typeof(DukeFurnitureForeground));
+            foreground.hideFlags = HideFlags.DontSave;
+            var frontRt = (RectTransform)foreground.transform;
+            frontRt.SetParent(host, false);
+            frontRt.anchorMin = Vector2.zero;
+            frontRt.anchorMax = Vector2.one;
+            frontRt.sizeDelta = Vector2.zero;
+            frontRt.anchoredPosition = Vector2.zero;
+            _furnitureForeground = foreground.GetComponent<DukeFurnitureForeground>();
             _mirrorReady = true;
         }
 
@@ -704,7 +741,7 @@ namespace GameNet.Gameplay
             }
 
             // 2) 尺寸：杜克高度 = 别墅图高度 × 比例 × 透视 × Transform 缩放
-            float villaHeight = _villaImage.rectTransform.rect.height;
+            float villaHeight = _villaImage.rectTransform.rect.height * ArtworkRect().height;
             Sprite sp = _mirrorImage.sprite;
             float aspect = sp.rect.height > 0.01f ? sp.rect.width / sp.rect.height : 1f;
             float sizeScale = Mathf.Max(0.01f, Mathf.Abs(transform.localScale.y));
@@ -713,18 +750,22 @@ namespace GameNet.Gameplay
             _mirrorRt.sizeDelta = size;
 
             // 3) 位置：对齐点（脚底/座位/床中心）世界坐标 → 屏幕像素 → 别墅图局部坐标
-            Vector3 screen = _cam.WorldToScreenPoint(transform.position);
+            Vector3 displayPosition = transform.position;
+            PatrolStop displayStop = CurrentStop();
+            if (_phase == Phase.Acting && displayStop != null && displayStop.activityNorm.x >= 0f)
+                displayPosition = ToGround(displayStop.activityNorm);
+            Vector3 screen = _cam.WorldToScreenPoint(displayPosition);
             if (screen.z <= 0f)
             {
                 _mirrorImage.enabled = false;
                 return;
             }
 
-            var canvasRt = _canvas.transform as RectTransform;
+            var canvasRt = _villaImage.rectTransform;
             Vector2 local;
             if (canvasRt == null ||
                 !RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    canvasRt, screen, _canvas.worldCamera, out local))
+                    canvasRt, screen, _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera, out local))
             {
                 return;
             }
@@ -733,6 +774,13 @@ namespace GameNet.Gameplay
 
             Vector2 offset = new Vector2((anchor.x - 0.5f) * size.x, (anchor.y - 0.5f) * size.y);
             _mirrorRt.anchoredPosition = local - offset;
+            if (_furnitureForeground != null)
+            {
+                bool acting = _phase == Phase.Acting && displayStop != null;
+                _furnitureForeground.Configure(_villaImage, _mirrorRt,
+                    acting && displayStop.action == DukeAction.WatchTV,
+                    acting && displayStop.action == DukeAction.Sleep);
+            }
         }
 
         /// <summary>当前对齐点：站点的 Anchor In Frame，没填 (-1,-1) 就按动作取默认值。</summary>
@@ -766,7 +814,7 @@ namespace GameNet.Gameplay
         {
             switch (action)
             {
-                case DukeAction.WatchTV: return new Vector2(0.54980469f, 0.32031250f); // 座位/骨盆
+                case DukeAction.WatchTV: return new Vector2(0.79f, 0.36f); // 后侧臀部接触座垫，不能用两腿之间的中心点
                 case DukeAction.Eat:     return new Vector2(0.60546875f, 0.07714844f); // 脚底
                 case DukeAction.Sleep:   return new Vector2(0.5f, 0.47265625f);        // 床中央
                 default: return new Vector2(0.5f, 0.07421875f);
