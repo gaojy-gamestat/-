@@ -124,6 +124,33 @@ public sealed class SampleSceneMenuRuntime : MonoBehaviour
         {
             AddSaveButton("读取存档：" + saves[i], saves[i], i + 1);
         }
+
+        // 单人测试：不走联机，直接进第一关（WASD+E / 方向键+右Shift 本地双人键位）
+        var singleTest = CreateButton("SaveOption_SingleTest", m_SaveList.transform,
+            "单人测试（本地双人键位）", new Vector2(0f, 95f - (saves.Count + 1) * 62f));
+        singleTest.GetComponent<Image>().color = new Color(0.16f, 0.55f, 0.31f, 1f);
+        singleTest.onClick.AddListener(OnSingleTestClicked);
+    }
+
+    private void OnSingleTestClicked()
+    {
+        if (m_RequestInFlight)
+        {
+            return;
+        }
+
+        const string sceneName = "第一关";
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[UI] 场景 “{sceneName}” 没有加入 Build Settings，无法进入。");
+            m_Status.text = "场景 “第一关” 没有加入 Build Settings，无法进入。";
+            return;
+        }
+
+        Debug.Log("[UI] 单人测试：直接进入第一关（本地双人键位）");
+        m_Canvas.enabled = false;
+        m_Mode = MenuMode.None;
+        SceneManager.LoadScene(sceneName);
     }
 
     private void RenderJoinMenu()

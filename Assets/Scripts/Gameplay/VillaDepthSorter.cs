@@ -87,6 +87,8 @@ namespace GameNet.Gameplay
             public SpriteRenderer sr;
             public Canvas own;
             public float key;
+            /// <summary>玩家布置出来的道具：不参与 Y 轴前后排序，永远压在角色之下。</summary>
+            public bool behindCharacter;
         }
 
         // ------------------------------------------------------------------
@@ -209,6 +211,7 @@ namespace GameNet.Gameplay
             e.own = e.rt != null ? EnsureCanvas(t.gameObject) : null;
             if (e.own != null) e.own.overrideSorting = true;
             e.key = 0f;
+            e.behindCharacter = t.name.StartsWith("道具_");
             _entries.Add(e);
         }
 
@@ -278,11 +281,26 @@ namespace GameNet.Gameplay
         // ------------------------------------------------------------------
         private void ApplyOrder()
         {
+            // 先找出所有角色镜像里最低的排序值；布置道具统一排到它下面一格，
+            // 这样不管角色走到画面哪个深度，脚下刚放下的道具都被角色压住。
+            int characterOrder = -1;
+            bool hasCharacter = false;
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (_entries[i].t == null || !_entries[i].t.name.Contains("角色镜像")) continue;
+                int co = CalcOrder(_entries[i]);
+                if (!hasCharacter || co < characterOrder) characterOrder = co;
+                hasCharacter = true;
+            }
+            int propOrder = Mathf.Clamp(
+                (hasCharacter ? characterOrder : backdropOrder + 10) - 1,
+                backdropOrder + 1, -2);
+
             for (int i = 0; i < _entries.Count; i++)
             {
                 Entry e = _entries[i];
 
-                int order = CalcOrder(e);
+                int order = e.behindCharacter ? propOrder : CalcOrder(e);
                 if (e.own != null) e.own.sortingOrder = order;
                 else if (e.sr != null) e.sr.sortingOrder = order;
             }

@@ -52,6 +52,8 @@ namespace GameNet.Gameplay
         public float speedInFloorWidths = 0.28f;
         [Tooltip("出生点：别墅图上的归一化坐标（0~1，左上角为原点）。默认落在走廊/厨房那一带。")]
         public Vector2 spawnImageNorm = new Vector2(0.58f, 0.83f);
+        [Tooltip("强制使用 spawnImageNorm 出生（忽略编辑态摆放位置）。双人各自配好出生点后设 true。")]
+        public bool forceSpawnImageNorm = false;
         [Tooltip("站着不动时把序列帧定格，避免原地踏步。")]
         public bool freezeAnimationWhenIdle = true;
 
@@ -63,6 +65,10 @@ namespace GameNet.Gameplay
         public string walkTowardState = "向前";
         [Tooltip("往左走的状态名。")]
         public string leftState = "向左";
+        [Tooltip("往左走时是否水平翻转（素材是“向右”剪影时设 true）。")]
+        public bool flipLeftState = false;
+        [Tooltip("往右走的状态名。留空 = 用「向左」状态 + 水平翻转（flipForRight，老行为）。")]
+        public string rightState = "";
         [Tooltip("往右走没有单独状态时：用「向左」的状态 + 水平翻转。")]
         public bool flipForRight = true;
 
@@ -85,6 +91,39 @@ namespace GameNet.Gameplay
         [Tooltip("角色 sprite 的 Sorting Order（世界空间画法时用）。")]
         public int sortingOrder = 10;
 
+        [Header("本地双人分控（森林冰火人式单人测试）")]
+        [Tooltip("Both = 两套键都响应（老行为，单角色兼容）；Oscar = WASD + E；Felix = 方向键 + 右Shift。")]
+        public ControlScheme controlScheme = ControlScheme.Both;
+        [Tooltip("布置键。留 None 则按上面的方案自动选：Oscar=E，Felix=右Shift。")]
+        public KeyCode placeKey = KeyCode.None;
+        [Tooltip("布置动作在 Animator 里的状态名（已由「双人玩法」工具合并进各自的行走控制器）。")]
+        public string placeStateName = "布置";
+        [Tooltip("布置动画播放时长（秒）。期间角色不移动、不切行走状态。")]
+        public float placeDuration = 1.2f;
+
+        /// <summary>本地双人分控方案。</summary>
+        public enum ControlScheme
+        {
+            Both = 0,   // 老行为：WASD 和方向键都能控制（单个角色）
+            Oscar = 1,  // W/A/S/D 移动 + E 布置
+            Felix = 2,  // ↑/↓/←/→ 移动 + 右Shift 布置
+        }
+
+        /// <summary>当前实际使用的布置键。</summary>
+        public KeyCode PlaceKey
+        {
+            get
+            {
+                // 只有配了真正有效的键（>0）才用自定义键；None(-1) 和 (KeyCode)0 都是非法键，
+                // (KeyCode)0 传给 Input.GetKeyDown 会抛 ArgumentException: Invalid KeyCode enum
+                if ((int)placeKey > 0) return placeKey;
+                return controlScheme == ControlScheme.Felix ? KeyCode.RightShift : KeyCode.E;
+            }
+        }
+
+        /// <summary>是否正在播放布置动作（此时不接受移动）。</summary>
+        public bool IsPlacing { get { return Time.time < _placeUntil; } }
+
         // ------------------------------------------------------------------
         // 运行时
         // ------------------------------------------------------------------
@@ -104,6 +143,7 @@ namespace GameNet.Gameplay
         private bool _usingRoom;            // 当前是否已经在用房间系统（多地板限制）行走
         private float _nextRoomRetry;
         private int _roomRetryCount;
+        private float _placeUntil = -1f;   // 布置动作结束时间
 
         /// <summary>角色脚底的世界坐标（地面上的真实位置）。</summary>
         public Vector3 FeetWorldPosition { get { return transform.position; } }
@@ -111,7 +151,59 @@ namespace GameNet.Gameplay
         /// <summary>角色目前在别墅图上的归一化坐标（0~1，左上为原点）。</summary>
         public Vector2 ImageNorm
         {
-            get { return (ground != null && ground.IsReady) ? ground.GroundToImageNorm(transform.position) : spawnImageNorm; }
+            get
+            {
+                // 多地板房间系统优先：老写法只看 ground，room 模式下 ground 为空会
+                // 永远返回出生点，导致「在角色脚下放道具」放到错误位置。
+                if (room != null && room.IsReady)
+                {
+                    return room.GroundToImageNorm(transform.position);
+                }
+                return (ground != null && ground.IsReady)
+                    ? ground.GroundToImageNorm(transform.position)
+                    : spawnImageNorm;
+            }
+        }
+
+        /// <summary>房间管理器（道具落点换算要用）。</summary>
+        public VillaRoomBuilder Room { get { return room; } }
+        /// <summary>别墅图 Image（道具要挂在它下面才和角色同一套坐标）。</summary>
+        public Image VillaImage { get { return _villaImage; } }
+        /// <summary>角色所用相机。</summary>
+        public Camera ViewCamera { get { return _cam; } }
+        /// <summary>别墅图所在 Canvas。</summary>
+        public Canvas VillaCanvas { get { return _canvas; } }
+
+        /// <summary>把角色镜像重新排到别墅子树最上层（布置道具后调用，避免道具盖住角色）。</summary>
+        public void BringMirrorToFront()
+        {
+            if (_mirrorRt != null && _mirrorRt.parent != null)
+            {
+                _mirrorRt.SetSiblingIndex(_mirrorRt.parent.childCount - 1);
+            }
+        }
+
+        /// <summary>播放一次布置动作：切到「布置」状态并锁定移动一小段时间。</summary>
+        public void PlayPlaceAnimation()
+        {
+            _placeUntil = Time.time + Mathf.Max(0.1f, placeDuration);
+            if (animator == null || string.IsNullOrEmpty(placeStateName))
+            {
+                return;
+            }
+
+            int hash = Animator.StringToHash(placeStateName);
+            if (animator.HasState(0, hash))
+            {
+                animator.speed = 1f;           // freezeAnimationWhenIdle 会把速度设 0，这里必须放开
+                animator.Play(hash, 0, 0f);
+                _currentState = null;          // 布置结束后强制重播行走状态
+            }
+            else
+            {
+                Debug.LogWarning($"[双人玩法] {gameObject.name} 的 Animator 里没有状态「{placeStateName}」，" +
+                                 "布置动作不会播放。请确认行走控制器已合并 creating 状态。");
+            }
         }
 
         // ------------------------------------------------------------------
@@ -153,6 +245,12 @@ namespace GameNet.Gameplay
                 TryUpgradeToRoom();
             }
 
+            // 布置动作播放中：站定不动、不切行走状态，让 creating 动画完整播完。
+            if (IsPlacing)
+            {
+                return;
+            }
+
             // 每帧自检：万一角色正好站在家具碰撞框里（出生点/传送落点被改过），
             // 四个方向都会被判阻挡，人就永远钉死。这里自动挪到最近的空地。
             EscapeIfStuck();
@@ -169,6 +267,12 @@ namespace GameNet.Gameplay
                 Debug.Log($"[角色] 当前图坐标 = ({ImageNorm.x:F3}, {ImageNorm.y:F3})。" +
                           "把这个坐标填到 VillaCharacterWalker 的 Spawn Image Norm 里即可改出生点。");
             }
+        }
+
+        /// <summary>按 E（或分控方案对应的键）请求布置一次道具。由双人玩法系统读取。</summary>
+        public bool ConsumePlaceRequest()
+        {
+            return Input.GetKeyDown(PlaceKey);
         }
 
         private void OnDrawGizmosSelected()
@@ -371,14 +475,33 @@ namespace GameNet.Gameplay
         // ------------------------------------------------------------------
         // 移动
         // ------------------------------------------------------------------
-        private static Vector2 ReadInput()
+        private Vector2 ReadInput()
         {
             float x = 0f;
             float y = 0f;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) x -= 1f;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) x += 1f;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) y += 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) y -= 1f;
+
+            if (controlScheme == ControlScheme.Oscar)
+            {
+                if (Input.GetKey(KeyCode.A)) x -= 1f;
+                if (Input.GetKey(KeyCode.D)) x += 1f;
+                if (Input.GetKey(KeyCode.W)) y += 1f;
+                if (Input.GetKey(KeyCode.S)) y -= 1f;
+            }
+            else if (controlScheme == ControlScheme.Felix)
+            {
+                if (Input.GetKey(KeyCode.LeftArrow)) x -= 1f;
+                if (Input.GetKey(KeyCode.RightArrow)) x += 1f;
+                if (Input.GetKey(KeyCode.UpArrow)) y += 1f;
+                if (Input.GetKey(KeyCode.DownArrow)) y -= 1f;
+            }
+            else // Both：老行为，两套键都控制同一个角色
+            {
+                if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) x -= 1f;
+                if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) x += 1f;
+                if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) y += 1f;
+                if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) y -= 1f;
+            }
+
             return new Vector2(x, y);
         }
 
@@ -548,6 +671,11 @@ namespace GameNet.Gameplay
         /// </summary>
         private Vector2 GetStartImageNorm()
         {
+            if (forceSpawnImageNorm)
+            {
+                return SafeSpawn();
+            }
+
             if (room != null && room.IsReady)
             {
                 Vector2 n = room.GroundToImageNorm(transform.position);
@@ -705,12 +833,12 @@ namespace GameNet.Gameplay
             else if (input.x < 0f)
             {
                 state = leftState;
-                flip = false;
+                flip = flipLeftState;
             }
             else
             {
-                // 往右：没有单独的“向右”序列帧，用「向左」+ 水平翻转
-                state = leftState;
+                // 往右：有单独的“向右”状态就直接用；没有则用「向左」+ 水平翻转
+                state = string.IsNullOrEmpty(rightState) ? leftState : rightState;
                 flip = flipForRight;
             }
 
