@@ -19,6 +19,8 @@ public static class Level01DukeGameplayValidation
     static float mark;
     static double started, wallMark;
     static int oldScene;
+    static bool entranceRequested;
+    static float entranceTime;
     static Level01DukeGameplay game;
     static VillaCharacterWalker player;
     static Level01DukeGameplayValidation()
@@ -31,6 +33,7 @@ public static class Level01DukeGameplayValidation
     {
         results.Clear();
         stage = 0;
+        entranceRequested = false;
         started = EditorApplication.timeSinceStartup;
         EditorApplication.update -= Tick;
         EditorApplication.update += Tick;
@@ -67,9 +70,20 @@ public static class Level01DukeGameplayValidation
                 game = UnityEngine.Object.FindObjectOfType<Level01DukeGameplay>();
                 if (game == null || !game.duke.IsReady || Time.time < .4f) return;
                 player = UnityEngine.Object.FindObjectOfType<VillaCharacterWalker>();
+                var entrance = GameObject.Find("庭院门").GetComponent<VillaDoor>();
+                if (!entranceRequested)
+                {
+                    Check(entrance.isActiveAndEnabled && entrance.IsPaired, "Courtyard entrance is enabled and paired");
+                    player.Teleport(new Vector2(.325f, .793f));
+                    entranceRequested = true; entranceTime = Time.time; return;
+                }
+                if (Time.time - entranceTime < 1.2f) return;
+                Vector2 indoor = game.duke.room.GroundToImageNorm(player.FeetWorldPosition);
+                Check(Vector2.Distance(indoor, entrance.GetSpawnImageNorm()) < .015f, "Player enters living room without cooldown bounce");
+                Check(!game.duke.room.IsBlocked(player.FeetWorldPosition, .0136f), "Entrance landing clears furniture");
                 player.enabled = false;
                 Check(game.anger != null && game.tasks != null && game.countdown.IsRunning, "Scene systems wired and timer running");
-                Check(!game.TryKitchenPrank(), "Cannot prank from the exterior spawn");
+                Check(!game.TryKitchenPrank(), "Cannot prank away from the kitchen");
                 MovePlayer(new Vector2(.847f, .815f));
                 Time.timeScale = 0;
                 Check(!game.TryKitchenPrank() && !game.ReportPrankCompleted("paused"), "Paused game cannot interact or award anger");
