@@ -100,6 +100,7 @@ namespace GameNet.Gameplay
         {
             public VillaCharacterWalker walker;
             public RectTransform panel;
+            public Canvas canvas;
             public readonly List<Image> cells = new List<Image>();
             public readonly List<string> items = new List<string>();
             public int selectedIndex = -1;
@@ -109,7 +110,7 @@ namespace GameNet.Gameplay
         private readonly List<PlayerBag> _bags = new List<PlayerBag>();
         private readonly HashSet<string> _roomsWithBag = new HashSet<string>();
         private bool _cleared;
-        private Text _progressText;
+        private bool _hintedRestart;
 
         private void Start()
         {
@@ -143,8 +144,6 @@ namespace GameNet.Gameplay
             }
 
             EnsureEventSystem();
-            BuildProgressText();
-            UpdateProgressText();
             Debug.Log($"[双人布置玩法] 背包就绪，玩家数 = {_bags.Count}，每人 {bagsPerPlayer} 个垃圾袋");
         }
 
@@ -163,6 +162,7 @@ namespace GameNet.Gameplay
             Canvas canvas = panelGo.GetComponent<Canvas>();
             canvas.overrideSorting = true;
             canvas.sortingOrder = 300;
+            bag.canvas = canvas;
             panelGo.transform.SetParent(bag.walker.VillaCanvas != null
                 ? bag.walker.VillaCanvas.transform
                 : FindObjectOfType<Canvas>()?.transform, false);
@@ -189,8 +189,7 @@ namespace GameNet.Gameplay
             float step = h / 6f;
             for (int i = 0; i < 5; i++)
             {
-                int index = i;
-                GameObject cellGo = new GameObject($"格子{i}", typeof(Image), typeof(Button));
+                GameObject cellGo = new GameObject($"格子{i}", typeof(Image));
                 cellGo.transform.SetParent(rt, false);
                 Image cell = cellGo.GetComponent<Image>();
                 cell.color = new Color(1f, 1f, 1f, 0.14f);
@@ -198,7 +197,6 @@ namespace GameNet.Gameplay
                 cell.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
                 cell.rectTransform.sizeDelta = new Vector2(cellSize, cellSize);
                 cell.rectTransform.anchoredPosition = new Vector2(0f, h * 0.5f - step * (i + 1));
-                cellGo.GetComponent<Button>().onClick.AddListener(() => SelectItem(bag, index));
                 bag.cells.Add(cell);
             }
 
@@ -211,6 +209,7 @@ namespace GameNet.Gameplay
             hint.alignment = TextAnchor.MiddleCenter;
             hint.color = Color.yellow;
             hint.horizontalOverflow = HorizontalWrapMode.Overflow;
+            hint.raycastTarget = false;
             hint.rectTransform.anchorMin = new Vector2(0.5f, 0f);
             hint.rectTransform.anchorMax = new Vector2(0.5f, 0f);
             hint.rectTransform.sizeDelta = new Vector2(h * ratio * 1.6f, step);
@@ -260,8 +259,10 @@ namespace GameNet.Gameplay
                         icon.raycastTarget = false;
                         icon.rectTransform.anchorMin = Vector2.zero;
                         icon.rectTransform.anchorMax = Vector2.one;
-                        icon.rectTransform.offsetMin = Vector2.one * 4f;
-                        icon.rectTransform.offsetMax = -Vector2.one * 4f;
+                        // 图标约占格子的 70%，别撑出背包图上画的方框
+                        float inset = cell.rectTransform.rect.height * 0.15f;
+                        icon.rectTransform.offsetMin = Vector2.one * inset;
+                        icon.rectTransform.offsetMax = -Vector2.one * inset;
                     }
                 }
 
@@ -274,14 +275,35 @@ namespace GameNet.Gameplay
 
         private void Update()
         {
-            // 4 个袋子都放完但没凑齐 4 个房间 → 按 R 重来，方便单人反复测试
-            if (!_cleared && _bags.Count > 0 && AllBagsUsed() && Input.GetKeyDown(KeyCode.R))
+            // 垃圾袋放完但没凑齐 4 个房间 → 背包面板上提示按 R 重来
+            if (!_cleared && _bags.Count > 0 && AllBagsUsed())
             {
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-                return;
+                if (!_hintedRestart)
+                {
+                    _hintedRestart = true;
+                    for (int i = 0; i < _bags.Count; i++)
+                    {
+                        if (_bags[i].hintText != null)
+                        {
+                            _bags[i].hintText.text = "垃圾袋放完了但没凑齐 4 个房间\n按 R 重来";
+                        }
+                    }
+                }
+
+                if (Input.GetKeyDown(KeyCode.R))
+                {
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                    return;
+                }
             }
 
             if (_cleared) return;
+
+            // 点击选中：直接做屏幕命中测试，不依赖 EventSystem 派发
+            if (Input.GetMouseButtonDown(0))
+            {
+                HandleBagClicks();
+            }
 
             for (int i = 0; i < _bags.Count; i++)
             {
@@ -293,6 +315,32 @@ namespace GameNet.Gameplay
 
                 w.PlayPlaceAnimation();
                 StartCoroutine(PlaceItemAfterAnimation(bag));
+            }
+        }
+
+        private void HandleBagClicks()
+        {
+            Vector2 mouse = Input.mousePosition;
+            for (int i = 0; i < _bags.Count; i++)
+            {
+                PlayerBag bag = _bags[i];
+                Camera cam = bag.canvas != null && bag.canvas.renderMode == RenderMode.ScreenSpaceCamera
+                    ? bag.canvas.worldCamera
+                    : null;
+
+                for (int k = 0; k < bag.cells.Count; k++)
+                {
+                    Image cell = bag.cells[k];
+                    if (cell == null) continue;
+                    if (!RectTransformUtility.RectangleContainsScreenPoint(cell.rectTransform, mouse, cam))
+                    {
+                        continue;
+                    }
+
+                    SelectItem(bag, k);
+                    Debug.Log($"[双人布置玩法] 点击 {bag.walker.gameObject.name} 的格子{k}（{bag.items.Count} 件道具），selectedIndex = {bag.selectedIndex}");
+                    break;
+                }
             }
         }
 
@@ -327,7 +375,6 @@ namespace GameNet.Gameplay
             }
 
             RegisterPlacement(w);
-            UpdateProgressText();
         }
 
         private bool AllBagsUsed()
@@ -390,47 +437,8 @@ namespace GameNet.Gameplay
         }
 
         // ------------------------------------------------------------------
-        // 进度 / 通关提示
+        // 通关提示
         // ------------------------------------------------------------------
-        private void BuildProgressText()
-        {
-            GameObject go = new GameObject("垃圾袋进度提示", typeof(Canvas), typeof(GraphicRaycaster), typeof(Text));
-            Canvas c = go.GetComponent<Canvas>();
-            c.renderMode = RenderMode.ScreenSpaceOverlay;
-            c.sortingOrder = 400;
-            _progressText = go.GetComponent<Text>();
-            _progressText.font = LoadUiFont();
-            _progressText.fontSize = 24;
-            _progressText.color = Color.white;
-            _progressText.alignment = TextAnchor.MiddleCenter;
-            _progressText.horizontalOverflow = HorizontalWrapMode.Overflow;
-            RectTransform rt = _progressText.rectTransform;
-            rt.anchorMin = new Vector2(0.5f, 1f);
-            rt.anchorMax = new Vector2(0.5f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
-            rt.anchoredPosition = new Vector2(0f, -18f);
-            rt.sizeDelta = new Vector2(1000f, 50f);
-        }
-
-        private void UpdateProgressText()
-        {
-            if (_progressText == null) return;
-            string s = "把杜克家的垃圾还回去：";
-            for (int i = 0; i < TargetRooms.Length; i++)
-            {
-                s += TargetRooms[i] + (_roomsWithBag.Contains(TargetRooms[i]) ? "(已放) " : "(待放) ");
-            }
-            if (_cleared)
-            {
-                s += " 本关完成！";
-            }
-            else if (_bags.Count > 0 && AllBagsUsed())
-            {
-                s += " 没凑齐 4 个房间，按 R 重来";
-            }
-            _progressText.text = s;
-        }
-
         private void ShowClearBanner()
         {
             GameObject go = new GameObject("通关提示", typeof(Canvas), typeof(GraphicRaycaster), typeof(Text));
