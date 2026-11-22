@@ -966,8 +966,8 @@ MonoBehaviour:
   - {x: 0.57775456, y: 0.7209481}
   actualWireColor: {r: 1, g: 0.55, b: 1, a: 1}
   projectedWireColor: {r: 1, g: 0.75, b: 0.95, a: 1}
-  targetDoor: {fileID: 3100000103}
-  pairedDoor: {fileID: 3100000103}
+  targetDoor: {fileID: 2006278967}
+  pairedDoor: {fileID: 2006278967}
   spawnOffset: {x: 0, y: 0.04}
   retriggerCooldown: 1
   doorLabel: 
@@ -4538,7 +4538,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2006278965}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c609351be61a4540bcb1aa660cc24652, type: 3}
   m_Name: 
@@ -4550,8 +4550,8 @@ MonoBehaviour:
   - {x: 0.5981977, y: 0.489927}
   actualWireColor: {r: 1, g: 0.55, b: 1, a: 1}
   projectedWireColor: {r: 1, g: 0.75, b: 0.95, a: 1}
-  targetDoor: {fileID: 0}
-  pairedDoor: {fileID: 0}
+  targetDoor: {fileID: 388586996}
+  pairedDoor: {fileID: 388586996}
   spawnOffset: {x: 0, y: 0.04}
   retriggerCooldown: 1
   doorLabel: 
@@ -4879,7 +4879,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3100000100}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c609351be61a4540bcb1aa660cc24652, type: 3}
   m_Name:
@@ -4891,8 +4891,8 @@ MonoBehaviour:
   - {x: 0.582, y: 0.785}
   actualWireColor: {r: 1, g: 0.55, b: 1, a: 1}
   projectedWireColor: {r: 1, g: 0.75, b: 0.95, a: 1}
-  targetDoor: {fileID: 388586996}
-  pairedDoor: {fileID: 388586996}
+  targetDoor: {fileID: 0}
+  pairedDoor: {fileID: 0}
   spawnOffset: {x: 0, y: 0.04}
   retriggerCooldown: 1
   doorLabel: "\u8D70\u5ECA\u4E3B\u5367\u95E8"
@@ -5022,51 +5022,62 @@ MonoBehaviour:
   targetCamera: {fileID: 1620462347}
   countdownSystem: {fileID: 560793957}
   stops:
-  - stopName: "\u5BA2\u5385\u6C99\u53D1\u770B\u7535\u89C6"
+  - stopName: "客厅沙发看电视"
     floorArea: {fileID: 0}
     offset: {x: 0, y: 0}
-    imageNorm: {x: 0.463, y: 0.716}
+    imageNorm: {x: 0.519, y: 0.79}
+    activityNorm: {x: 0.516, y: 0.73}
     action: 0
-    staySeconds: 15
+    staySeconds: 10
     anchorInFrame: {x: -1, y: -1}
-    travelSeconds: 5
+    travelSeconds: 10
     routePoints:
-    - {x: 0.596, y: 0.660}
-    - {x: 0.595, y: 0.770}
-    - {x: 0.562, y: 0.744}
-  - stopName: "\u53A8\u623F\u9910\u53F0\u5403\u4E1C\u897F"
+    - {x: 0.623, y: 0.512}
+    - {x: 0.614, y: 0.478}
+    - {x: 0.595, y: 0.79}
+    - {x: 0.563, y: 0.78}
+    - {x: 0.519, y: 0.802}
+  - stopName: "厨房餐桌右侧吃饭"
     floorArea: {fileID: 0}
     offset: {x: 0, y: 0}
-    imageNorm: {x: 0.849, y: 0.769}
+    imageNorm: {x: 0.847, y: 0.785}
+    activityNorm: {x: -1, y: -1}
     action: 1
-    staySeconds: 15
+    staySeconds: 10
     anchorInFrame: {x: -1, y: -1}
-    travelSeconds: 5
+    travelSeconds: 10
     routePoints:
-    - {x: 0.543, y: 0.762}
-    - {x: 0.595, y: 0.770}
-    - {x: 0.631, y: 0.745}
-  - stopName: "\u4E00\u697C\u4E3B\u5367\u4F11\u606F"
+    - {x: 0.543, y: 0.78}
+    - {x: 0.595, y: 0.79}
+    - {x: 0.631, y: 0.78}
+    - {x: 0.69, y: 0.815}
+    - {x: 0.84, y: 0.815}
+  - stopName: "主卧床上睡觉"
     floorArea: {fileID: 0}
     offset: {x: 0, y: 0}
-    imageNorm: {x: 0.596, y: 0.700}
+    imageNorm: {x: 0.642, y: 0.512}
+    activityNorm: {x: 0.69, y: 0.474}
     action: 2
-    staySeconds: 15
+    staySeconds: 10
     anchorInFrame: {x: -1, y: -1}
-    travelSeconds: 5
+    travelSeconds: 10
     routePoints:
-    - {x: 0.656, y: 0.762}
-    - {x: 0.602, y: 0.770}
-    - {x: 0.596, y: 0.760}
-  speedInFloorWidths: 0.2
+    - {x: 0.84, y: 0.815}
+    - {x: 0.69, y: 0.815}
+    - {x: 0.656, y: 0.78}
+    - {x: 0.596, y: 0.73}
+    - {x: 0.596, y: 0.69}
+    - {x: 0.623, y: 0.512}
+  speedInFloorWidths: 0.25
+  clearanceNorm: 0.004
   directionThreshold: 0.004
   walkFrontState: WalkFront
   walkBackState: WalkBack
   walkLeftState: WalkLeft
   walkRightState: WalkRight
   stopAction: 2
-  heightRatioOfVilla: 0.16
-  scaleByDepth: 1
+  heightRatioOfVilla: 0.135
+  scaleByDepth: 0
   sortingOrder: 10
   enableDebugLog: 1
 --- !u!1 &299091540

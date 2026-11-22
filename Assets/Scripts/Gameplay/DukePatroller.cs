@@ -124,7 +124,7 @@ namespace GameNet.Gameplay
 
         [Header("显示")]
         [Tooltip("杜克显示高度 = 别墅图高度的百分之多少（也可以改 Transform 缩放叠加微调）。")]
-        [Range(0.02f, 1f)] public float heightRatioOfVilla = 0.115f;
+        [Range(0.02f, 1f)] public float heightRatioOfVilla = 0.135f;
         [Tooltip("按透视远近缩放：走近镜头变大、走远变小。")]
         public bool scaleByDepth = true;
         [Tooltip("杜克 sprite 的 Sorting Order（世界空间画法时用；镜像排序由 VillaDepthSorter 管）。")]

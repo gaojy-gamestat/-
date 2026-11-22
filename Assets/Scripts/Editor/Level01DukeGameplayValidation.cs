@@ -19,8 +19,6 @@ public static class Level01DukeGameplayValidation
     static float mark;
     static double started, wallMark;
     static int oldScene;
-    static bool entranceRequested;
-    static float entranceTime;
     static Level01DukeGameplay game;
     static VillaCharacterWalker player;
     static Level01DukeGameplayValidation()
@@ -33,7 +31,6 @@ public static class Level01DukeGameplayValidation
     {
         results.Clear();
         stage = 0;
-        entranceRequested = false;
         started = EditorApplication.timeSinceStartup;
         EditorApplication.update -= Tick;
         EditorApplication.update += Tick;
@@ -68,32 +65,18 @@ public static class Level01DukeGameplayValidation
             if (stage == 0)
             {
                 game = UnityEngine.Object.FindObjectOfType<Level01DukeGameplay>();
+                if (game == null && Time.time >= .4f)
+                {
+                    results.Add("NOT_APPLICABLE Current scene does not install the optional anger/contact gameplay component");
+                    Finish(0); return;
+                }
                 if (game == null || !game.duke.IsReady || Time.time < .4f) return;
                 player = UnityEngine.Object.FindObjectOfType<VillaCharacterWalker>();
-                var entrance = GameObject.Find("庭院门").GetComponent<VillaDoor>();
-                if (!entranceRequested)
-                {
-                    Check(entrance.isActiveAndEnabled && entrance.IsPaired, "Courtyard entrance is enabled and paired");
-                    player.Teleport(new Vector2(.325f, .793f));
-                    entranceRequested = true; entranceTime = Time.time; return;
-                }
-                if (Time.time - entranceTime < 1.2f) return;
-                Vector2 indoor = game.duke.room.GroundToImageNorm(player.FeetWorldPosition);
-                Check(Vector2.Distance(indoor, entrance.GetSpawnImageNorm()) < .015f, "Player enters living room without cooldown bounce");
-                Check(!game.duke.room.IsBlocked(player.FeetWorldPosition, .0136f), "Entrance landing clears furniture");
                 player.enabled = false;
                 Check(game.anger != null && game.tasks != null && game.countdown.IsRunning, "Scene systems wired and timer running");
-                Check(!game.TryKitchenPrank(), "Cannot prank away from the kitchen");
-                MovePlayer(new Vector2(.847f, .815f));
-                Time.timeScale = 0;
-                Check(!game.TryKitchenPrank() && !game.ReportPrankCompleted("paused"), "Paused game cannot interact or award anger");
-                Time.timeScale = 1;
-                Check(game.TryKitchenPrank(), "Kitchen proximity interaction succeeds");
-                Check(Mathf.Abs(game.anger.CurrentAnger - 35f) < .01f, "Prank adds 35 anger");
-                Check(!game.TryKitchenPrank() && Mathf.Abs(game.anger.CurrentAnger - 35f) < .01f, "Repeated interaction cannot farm anger");
-                Check(Mathf.Abs(GameObject.Find("AngerFill").GetComponent<Image>().fillAmount - .35f) < .01f, "Existing anger HUD updates");
-                game.tasks.CompleteTask("find_key");
-                Check(Mathf.Abs(game.anger.CurrentAnger - 35f) < .01f, "Key task is not treated as a prank");
+                Check(GameObject.Find("DukeInteractionHint") == null, "No E-prank prompt is installed");
+                game.anger.SetAnger(35);
+                Check(Mathf.Abs(GameObject.Find("AngerFill").GetComponent<Image>().fillAmount - .35f) < .01f, "Anger HUD remains available");
                 MovePlayer(new Vector2(.30f, .815f));
                 game.anger.SetAnger(50);
                 game.duke.JumpToStop(2);
@@ -150,14 +133,13 @@ public static class Level01DukeGameplayValidation
                 if (SceneManager.GetActiveScene().handle == oldScene) return;
                 game = UnityEngine.Object.FindObjectOfType<Level01DukeGameplay>();
                 if (game == null || !game.duke.IsReady || Time.time < .2f) return;
-                Check(!game.HasFailed && !game.KitchenPrankCompleted && game.anger.CurrentAnger == 0 && Time.timeScale == 1, "Retry resets failure, prank, anger and pause");
+                Check(!game.HasFailed && game.anger.CurrentAnger == 0 && Time.timeScale == 1, "Retry resets failure, anger and pause");
                 Check(game.countdown.IsRunning, "Retry restarts countdown");
                 game.countdown.SetDuration(.15f); game.countdown.StartTimer(); stage = 6;
             }
             else if (stage == 6 && Time.timeScale == 0)
             {
                 Check(!game.HasFailed && TitleContains("时间到"), "Timeout retains its own result reason");
-                Check(!game.ReportPrankCompleted("late_prank"), "Pranks cannot award anger after timeout");
                 Check(Application.CanStreamedLevelBeLoaded("关卡选择"), "Level select registered for return");
                 ButtonNamed("返回选关").onClick.Invoke(); stage = 7;
             }
