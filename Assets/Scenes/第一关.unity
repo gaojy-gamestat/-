@@ -5065,18 +5065,19 @@ MonoBehaviour:
     - {x: 0.84, y: 0.815}
     - {x: 0.69, y: 0.815}
     - {x: 0.656, y: 0.78}
-    - {x: 0.596, y: 0.73}
+    - {x: 0.596, y: 0.76}
     - {x: 0.596, y: 0.69}
     - {x: 0.623, y: 0.512}
   speedInFloorWidths: 0.25
   clearanceNorm: 0.004
+  doorStandOff: 0.024
   directionThreshold: 0.004
   walkFrontState: WalkFront
   walkBackState: WalkBack
   walkLeftState: WalkLeft
   walkRightState: WalkRight
   stopAction: 2
-  heightRatioOfVilla: 0.135
+  heightRatioOfVilla: 0.125
   scaleByDepth: 0
   sortingOrder: 10
   enableDebugLog: 1

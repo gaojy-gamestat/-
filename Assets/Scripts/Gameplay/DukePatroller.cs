@@ -102,7 +102,7 @@ namespace GameNet.Gameplay
                 imageNorm = new Vector2(0.642f, 0.512f), activityNorm = new Vector2(0.690f, 0.474f),
                 routePoints = new List<Vector2> { new Vector2(0.840f, 0.815f),
                     new Vector2(0.690f, 0.815f), new Vector2(0.656f, 0.780f),
-                    new Vector2(0.596f, 0.730f), new Vector2(0.596f, 0.690f),
+                    new Vector2(0.596f, 0.760f), new Vector2(0.596f, 0.690f),
                     new Vector2(0.623f, 0.512f) } },
         };
 
@@ -111,6 +111,8 @@ namespace GameNet.Gameplay
         public float speedInFloorWidths = 0.25f;
         [Tooltip("与家具边缘保持的图片归一化间距。") ]
         [Min(0.001f)] public float clearanceNorm = 0.004f;
+        [Tooltip("在门洞外停下并传送的距离，避免身体走到门板上。图像归一化单位。")]
+        [Range(0.005f, 0.05f)] public float doorStandOff = 0.024f;
         [Tooltip("换算移动方向用的坐标差阈值（图坐标）。小于它不算换了方向。")]
         public float directionThreshold = 0.004f;
 
@@ -124,7 +126,7 @@ namespace GameNet.Gameplay
 
         [Header("显示")]
         [Tooltip("杜克显示高度 = 别墅图高度的百分之多少（也可以改 Transform 缩放叠加微调）。")]
-        [Range(0.02f, 1f)] public float heightRatioOfVilla = 0.135f;
+        [Range(0.02f, 1f)] public float heightRatioOfVilla = 0.125f;
         [Tooltip("按透视远近缩放：走近镜头变大、走远变小。")]
         public bool scaleByDepth = true;
         [Tooltip("杜克 sprite 的 Sorting Order（世界空间画法时用；镜像排序由 VillaDepthSorter 管）。")]
@@ -156,6 +158,8 @@ namespace GameNet.Gameplay
         private float _walkDuration;
         private float _walkSpeed;
         private readonly List<Vector2> _activePath = new List<Vector2>();
+        private readonly List<VillaDoor> _pathDoors = new List<VillaDoor>();
+        private readonly List<Vector2> _pathLandings = new List<Vector2>();
         private int _activePathIndex;
         private float _lastDoorTime = -10f;
         private string _currentAnim;
@@ -329,7 +333,15 @@ namespace GameNet.Gameplay
                 if ((target - transform.position).sqrMagnitude <= arriveGap * arriveGap)
                 {
                     transform.position = target;
-                    TraverseDoorAtCurrentPosition();
+                    VillaDoor door = _pathDoors[_activePathIndex];
+                    if (door != null)
+                    {
+                        if (Time.time - _lastDoorTime < Mathf.Max(0f, door.retriggerCooldown)) return;
+                        Vector2 landing = _pathLandings[_activePathIndex];
+                        Debug.Log($"[杜克门口] {door.name} → {door.targetDoor.name}，门外={point}，落点={landing}", this);
+                        transform.position = ToGround(landing);
+                        _lastDoorTime = Time.time;
+                    }
                     _activePathIndex++;
                 }
             }
@@ -368,6 +380,7 @@ namespace GameNet.Gameplay
                 _activePath.Add(finalPoint);
             }
 
+            PreparePortalApproaches();
             _activePathIndex = 0;
             float pathLength = CalculateWalkPathLength();
             _walkSpeed = Mathf.Max(0.001f, Mathf.Min(pathLength / _walkDuration, SpeedWorld()));
@@ -382,31 +395,68 @@ namespace GameNet.Gameplay
             {
                 Vector3 point = ToGround(_activePath[i]);
                 total += Vector3.Distance(cursor, point);
-                VillaDoor door = room != null && room.IsReady ? room.FindDoorAt(CollisionPoint(point)) : null;
-                cursor = door != null && door.IsPaired
-                    ? ToGround(door.GetSpawnImageNorm())
-                    : point;
+                cursor = _pathDoors[i] != null ? ToGround(_pathLandings[i]) : point;
             }
 
             return total;
         }
 
-        private void TraverseDoorAtCurrentPosition()
+        private void PreparePortalApproaches()
         {
-            if (room == null || !room.IsReady)
+            _pathDoors.Clear();
+            _pathLandings.Clear();
+            Vector2 cursor = ImageNorm;
+            for (int i = 0; i < _activePath.Count; i++)
             {
-                return;
-            }
+                Vector2 point = _activePath[i];
+                VillaDoor door = room != null && room.IsReady
+                    ? room.FindDoorAt(room.ImageNormToGround(point)) : null;
+                if (door == null || !door.IsPaired)
+                {
+                    _pathDoors.Add(null);
+                    _pathLandings.Add(Vector2.zero);
+                    cursor = point;
+                    continue;
+                }
 
-            VillaDoor door = room.FindDoorAt(CollisionPoint(transform.position));
-            if (door == null || !door.IsPaired ||
-                Time.time - _lastDoorTime < Mathf.Max(0f, door.retriggerCooldown))
+                // 沿实际来路找门洞边界，再退到门槛外；不能走到门区中心才传送。
+                Vector2 outside = cursor, inside = point;
+                for (int sample = 0; sample < 20; sample++)
+                {
+                    Vector2 middle = (outside + inside) * .5f;
+                    if (door.ContainsImageNorm(middle)) inside = middle;
+                    else outside = middle;
+                }
+                Vector2 entry = outside + (cursor - point).normalized * doorStandOff;
+                if (Vector2.Dot(entry - cursor, point - cursor) < 0f) entry = cursor;
+                Vector2 landing = DoorLanding(door);
+                Debug.Assert(!door.ContainsImageNorm(entry) && !door.targetDoor.ContainsImageNorm(landing),
+                    "杜克进出门路点必须位于门区外，请检查巡逻路线和门槛间距。", this);
+                _activePath[i] = entry;
+                _pathDoors.Add(door);
+                _pathLandings.Add(landing);
+                cursor = landing;
+            }
+        }
+
+        private Vector2 DoorLanding(VillaDoor source)
+        {
+            VillaDoor target = source.targetDoor;
+            Vector2 delta = target.CenterImageNorm - source.CenterImageNorm;
+            Vector2 landing = source.GetSpawnImageNorm();
+            float left = float.MaxValue, right = float.MinValue, bottom = float.MinValue;
+            foreach (Vector2 corner in target.corners)
             {
-                return;
+                left = Mathf.Min(left, corner.x);
+                right = Mathf.Max(right, corner.x);
+                bottom = Mathf.Max(bottom, corner.y);
             }
-
-            transform.position = ToGround(door.GetSpawnImageNorm());
-            _lastDoorTime = Time.time;
+            // 正面门从门槛下方落地；侧门沿左右通行方向落到门框外。
+            if (Mathf.Abs(delta.y) > Mathf.Abs(delta.x) * 2f)
+                landing.y = bottom + doorStandOff;
+            else
+                landing.x = delta.x >= 0f ? right + doorStandOff : left - doorStandOff;
+            return landing;
         }
 
         /// <summary>到达一站：切回“播动作”阶段。</summary>
