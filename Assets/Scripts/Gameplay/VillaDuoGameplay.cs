@@ -55,6 +55,7 @@ namespace GameNet.Gameplay
             if (scene.name == "第一关")
             {
                 EnsureGameplay();
+                EnsureCatchSystem();
             }
         }
 
@@ -62,6 +63,23 @@ namespace GameNet.Gameplay
         {
             if (FindObjectOfType<VillaDuoGameplay>() != null) return;
             new GameObject("双人布置玩法", typeof(VillaDuoGameplay));
+        }
+
+        /// <summary>
+        /// 「被发现」判定组件（Level01DukeGameplay）没有挂在场景里的 Duke 物体上，
+        /// 这里运行时自动补挂——不补挂的话同房间检测永远不会执行。
+        /// </summary>
+        private static void EnsureCatchSystem()
+        {
+            DukePatroller duke = FindObjectOfType<DukePatroller>();
+            if (duke == null)
+            {
+                Debug.LogWarning("[双人布置玩法] 场景里没有 DukePatroller，无法启用被发现判定。");
+                return;
+            }
+            if (duke.GetComponent<Level01DukeGameplay>() != null) return;
+            duke.gameObject.AddComponent<Level01DukeGameplay>();
+            Debug.Log("[双人布置玩法] 已自动挂上被发现判定（Level01DukeGameplay）到 Duke。");
         }
 
         /// <summary>优先用场景里已有的中文字体，找不到就用系统微软雅黑。</summary>
@@ -275,6 +293,9 @@ namespace GameNet.Gameplay
 
         private void Update()
         {
+            // READY/GO 开场字幕或结算面板冻结期间（timeScale=0）不响应任何操作
+            if (Time.timeScale <= 0f) return;
+
             // 垃圾袋放完但没凑齐 4 个房间 → 背包面板上提示按 R 重来
             if (!_cleared && _bags.Count > 0 && AllBagsUsed())
             {

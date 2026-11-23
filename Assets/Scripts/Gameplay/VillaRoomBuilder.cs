@@ -55,6 +55,7 @@ namespace GameNet.Gameplay
         private readonly List<VillaFloorArea> _floors = new List<VillaFloorArea>();
         private readonly List<VillaZoneBase> _blockers = new List<VillaZoneBase>();
         private readonly List<VillaDoor> _doors = new List<VillaDoor>();
+        private readonly List<VillaRoomArea> _roomAreas = new List<VillaRoomArea>();
         private readonly List<GameObject> _runtimeObjects = new List<GameObject>();
 
         private int _lastScreenW = -1;
@@ -69,6 +70,9 @@ namespace GameNet.Gameplay
 
         /// <summary>所有门（只读）。</summary>
         public IList<VillaDoor> Doors { get { return _doors; } }
+
+        /// <summary>所有房间区域（只读）。同房间判定优先用它（一个区域可罩住多块拼接地板）。</summary>
+        public IList<VillaRoomArea> RoomAreas { get { return _roomAreas; } }
 
         /// <summary>参考地板宽度（世界单位）：取第一块地板“近边”的宽度，用来把速度/半径换算成世界量。</summary>
         public float FloorWidth
@@ -169,14 +173,22 @@ namespace GameNet.Gameplay
             _floors.Clear();
             _blockers.Clear();
             _doors.Clear();
+            _roomAreas.Clear();
             GetComponentsInChildren(true, _floors);
             GetComponentsInChildren(true, _blockers);
             GetComponentsInChildren(true, _doors);
+            GetComponentsInChildren(true, _roomAreas);
+            if (_roomAreas.Count == 0)
+            {
+                // 房间区域允许摆在层级任意位置（不强制挂在别墅物体下）
+                _roomAreas.AddRange(FindObjectsOfType<VillaRoomArea>(true));
+            }
 
-            // 墙和障碍物都算阻挡；门不阻挡（只触发传送）
+            // 白名单：只有墙和障碍物算阻挡（生成 3D 碰撞体）；
+            // 地板、门、房间区域（VillaRoomArea）只是检测区域，不生成任何碰撞体
             for (int i = _blockers.Count - 1; i >= 0; i--)
             {
-                if (_blockers[i] is VillaDoor || _blockers[i] is VillaFloorArea)
+                if (!(_blockers[i] is VillaObstacle || _blockers[i] is VillaWall))
                 {
                     _blockers.RemoveAt(i);
                 }
@@ -356,6 +368,93 @@ namespace GameNet.Gameplay
             }
 
             return ImageNormToGround(bestP);
+        }
+
+        // ------------------------------------------------------------------
+        // 区域管理：判定两个角色是否处于同一房间
+        // ------------------------------------------------------------------
+        // 同一块地板区域 = 同一个房间。玩家（Oscar/Felix 任一）与房主（杜克）
+        // 只要落在这块地板内，就算“被房主发现”，由 Level01DukeGameplay 播失败流程。
+
+        /// <summary>
+        /// 两个图坐标（0~1，左上原点）是否落在同一块地板区域内（即同一房间）。
+        /// </summary>
+        public bool InSameFloorArea(Vector2 a, Vector2 b)
+        {
+            if (!IsReady) return false;
+            for (int i = 0; i < _floors.Count; i++)
+            {
+                VillaFloorArea f = _floors[i];
+                if (f == null || !f.isActiveAndEnabled) continue;
+                if (f.ContainsImageNorm(a) && f.ContainsImageNorm(b)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 世界坐标重载：内部先转成图坐标再判定，供“玩家 vs 房主”同房间检测直接调用。
+        /// </summary>
+        public bool InSameFloorAreaWorld(Vector3 a, Vector3 b)
+        {
+            if (!IsReady) return false;
+            return InSameFloorArea(GroundToImageNorm(a), GroundToImageNorm(b));
+        }
+
+        /// <summary>
+        /// 两个世界坐标是否属于同一个“房间”（区域判定的正式入口）：
+        ///   * 摆放了 VillaRoomArea（房间区域）时：落进同一个房间区域 = 同一房间；
+        ///     一个区域可以罩住多块拼接地板（例如客厅地板左 + 客厅地板右）；
+        ///   * 没摆放任何房间区域时：退化为“同一块地板”判定。
+        /// </summary>
+        public bool InSameRoom(Vector3 a, Vector3 b)
+        {
+            if (!IsReady) return false;
+            Vector2 na = GroundToImageNorm(a);
+            Vector2 nb = GroundToImageNorm(b);
+
+            bool hasAreas = false;
+            for (int i = 0; i < _roomAreas.Count; i++)
+            {
+                VillaRoomArea r = _roomAreas[i];
+                if (r == null || !r.isActiveAndEnabled) continue;
+                hasAreas = true;
+                if (r.ContainsImageNorm(na) && r.ContainsImageNorm(nb)) return true;
+            }
+
+            return !hasAreas && InSameFloorArea(na, nb);
+        }
+
+        /// <summary>世界坐标所在“房间”的名称（优先房间区域名，其次地板名），用于日志；不在任何区域返回 null。</summary>
+        public string RoomNameAt(Vector3 world)
+        {
+            if (!IsReady) return null;
+            Vector2 n = GroundToImageNorm(world);
+
+            for (int i = 0; i < _roomAreas.Count; i++)
+            {
+                VillaRoomArea r = _roomAreas[i];
+                if (r == null || !r.isActiveAndEnabled) continue;
+                if (r.ContainsImageNorm(n))
+                {
+                    return string.IsNullOrEmpty(r.roomName) ? r.gameObject.name : r.roomName;
+                }
+            }
+
+            return FloorNameAt(world);
+        }
+
+        /// <summary>世界坐标所在的地板名（用于日志），不在任何地板上返回 null。</summary>
+        public string FloorNameAt(Vector3 world)
+        {
+            if (!IsReady) return null;
+            Vector2 n = GroundToImageNorm(world);
+            for (int i = 0; i < _floors.Count; i++)
+            {
+                VillaFloorArea f = _floors[i];
+                if (f == null || !f.isActiveAndEnabled) continue;
+                if (f.ContainsImageNorm(n)) return f.gameObject.name;
+            }
+            return null;
         }
 
         /// <summary>
@@ -645,6 +744,7 @@ namespace GameNet.Gameplay
             DrawProjectedWire(_floors);
             DrawProjectedWire(_blockers);
             DrawProjectedWire(_doors);
+            DrawProjectedWire(_roomAreas);
         }
 
         private static Material _glMat;
@@ -712,6 +812,7 @@ namespace GameNet.Gameplay
             DrawZoneGizmo(_floors);
             DrawZoneGizmo(_blockers);
             DrawZoneGizmo(_doors);
+            DrawZoneGizmo(_roomAreas);
         }
 
         private void DrawZoneGizmo<T>(List<T> zones) where T : VillaZoneBase

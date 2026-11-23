@@ -47,10 +47,18 @@ namespace GameNet.Gameplay
                     : duke.CurrentActivity == DukePatroller.DukeAction.Sleep ? sleepCalmPerSecond : 0f;
                 anger.RemoveAnger(calm * Time.deltaTime);
             }
+            // 发现判定：走 VillaRoomBuilder 的区域管理接口 InSameRoom——
+            // 优先按人工摆放的房间区域（VillaRoomArea）判定，一个区域可罩住多块拼接地板；
+            // 没摆放房间区域时退化为“同一块地板”。任一玩家与房主同处一室即播失败流程。
             foreach (var player in players)
             {
-                if (player != null && CanCatchAt(duke.WorldToArtworkNorm(player.FeetWorldPosition)))
-                { CatchPlayer(); return; }
+                if (player == null || duke.room == null) continue;
+                if (duke.room.InSameRoom(player.FeetWorldPosition, duke.transform.position))
+                {
+                    Debug.Log($"[被发现] {player.gameObject.name} 与房主同处一室（{duke.room.RoomNameAt(player.FeetWorldPosition)}）");
+                    CatchPlayer();
+                    return;
+                }
             }
         }
 
@@ -91,7 +99,9 @@ namespace GameNet.Gameplay
                 if (player != null) player.SuspendMovement();
             var bgm = FindObjectOfType<GameBgmDirector>();
             if (bgm != null) bgm.NotifyPlayerCaught();
-            TimeUpPanelRuntime.ShowCaught(font);
+            // 先播"被发现"失败过场视频，播完再弹重新挑战/返回选关面板
+            GameNet.UI.VideoCutscenePlayer.Play("视频/被发现失败", null,
+                () => TimeUpPanelRuntime.ShowCaught(font));
         }
 
     }

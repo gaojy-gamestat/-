@@ -139,18 +139,11 @@ public sealed class SampleSceneMenuRuntime : MonoBehaviour
             return;
         }
 
-        const string sceneName = "第一关";
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
-        {
-            Debug.LogError($"[UI] 场景 “{sceneName}” 没有加入 Build Settings，无法进入。");
-            m_Status.text = "场景 “第一关” 没有加入 Build Settings，无法进入。";
-            return;
-        }
-
-        Debug.Log("[UI] 单人测试：直接进入第一关（本地双人键位）");
+        // 流程：点击单人测试 → 播过场视频 → 选关界面 → 选关卡进对应关卡场景
+        Debug.Log("[UI] 单人测试：播放过场视频，播完进入选关界面");
         m_Canvas.enabled = false;
         m_Mode = MenuMode.None;
-        SceneManager.LoadScene(sceneName);
+        GameNet.UI.VideoCutscenePlayer.Play("视频/单人测试过场", "关卡选择");
     }
 
     private void RenderJoinMenu()

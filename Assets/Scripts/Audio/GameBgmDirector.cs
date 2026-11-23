@@ -169,6 +169,14 @@ namespace GameNet.Audio
         // ------------------------------------------------------------------
         public void NotifyPlayerCaught() => HandleTimeUp();
 
+        /// <summary>过场视频播放期间暂停 BGM（视频自带音频），结束后恢复。</summary>
+        public void SetMuted(bool muted)
+        {
+            if (m_Source == null) return;
+            if (muted) m_Source.Pause();
+            else m_Source.UnPause();
+        }
+
         private void HandleTimeUp()
         {
             if (m_OutcomeLocked) return;
