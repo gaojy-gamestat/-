@@ -1,0 +1,567 @@
+fileFormatVersion: 2
+guid: 4e637d2ba4b455a499250c5047076c35
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_0"
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 6144
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b1e57851d2d716042a29709dfc7be829
+      internalID: 650905863
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_1"
+      rect:
+        serializedVersion: 2
+        x: 1339
+        y: 6144
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 219b6278dab2aad4fb7c9c81cd1f411a
+      internalID: 139125128
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_2"
+      rect:
+        serializedVersion: 2
+        x: 2678
+        y: 6144
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0548873b566228c458cc4d2ef367fbaf
+      internalID: -1164313765
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_3"
+      rect:
+        serializedVersion: 2
+        x: 4017
+        y: 6144
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5cbbfa98287fdd64dbb7c13b568e5450
+      internalID: 211899447
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_4"
+      rect:
+        serializedVersion: 2
+        x: 5356
+        y: 6144
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1def4ad59fcd94d4799d4665a28aaffc
+      internalID: 752614029
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_5"
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 4096
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d9a59d6410d43244caf2c6f10e2f1142
+      internalID: 837481156
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_6"
+      rect:
+        serializedVersion: 2
+        x: 1339
+        y: 4096
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ba76f22ac9d2e324686da4aba14dd447
+      internalID: -1718259129
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_7"
+      rect:
+        serializedVersion: 2
+        x: 2678
+        y: 4096
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 891e4af05e097ac44b9e8a9353bda201
+      internalID: 957885596
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_8"
+      rect:
+        serializedVersion: 2
+        x: 4017
+        y: 4096
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 44c76c6d7fad2d54498caf7cb236de44
+      internalID: 1834705084
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_9"
+      rect:
+        serializedVersion: 2
+        x: 5356
+        y: 4096
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 40d9c4ae962e7164884cde8ecebde78d
+      internalID: 1135943825
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_10"
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 2048
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c592ea2bc4ef6ee4599bca33655ca559
+      internalID: 230359463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_11"
+      rect:
+        serializedVersion: 2
+        x: 1339
+        y: 2048
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0bcf3efec37717244ac79187865b48c9
+      internalID: 163421936
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_12"
+      rect:
+        serializedVersion: 2
+        x: 2678
+        y: 2048
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1dddddf160cc9cb4280c2c158c6bd468
+      internalID: 1301383409
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_13"
+      rect:
+        serializedVersion: 2
+        x: 4017
+        y: 2048
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 10218aa81d1ac244b928260197877f31
+      internalID: -1736538318
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_14"
+      rect:
+        serializedVersion: 2
+        x: 5356
+        y: 2048
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c90b7d73678bf546a07526a1687e286
+      internalID: 1367705169
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_15"
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7e6aca30d5b9d8c458c93050da4086b0
+      internalID: 1500194434
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_16"
+      rect:
+        serializedVersion: 2
+        x: 1339
+        y: 0
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ef83631ac42c1f8468e8cf8c5e23bccb
+      internalID: -929282767
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_17"
+      rect:
+        serializedVersion: 2
+        x: 2678
+        y: 0
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 03cdf6ce8f672624c9df0a02785ac35e
+      internalID: -1481690269
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_18"
+      rect:
+        serializedVersion: 2
+        x: 4017
+        y: 0
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 61a78d905e5950644a441f5fe751d9c9
+      internalID: 1777310497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "mona\u7B2C\u4E00\u9636\u6BB5_19"
+      rect:
+        serializedVersion: 2
+        x: 5356
+        y: 0
+        width: 1339
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eb59e06195debc64f846f352054834b2
+      internalID: -1507774564
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: daf2e126ed6c84a4e9b2abecd07b0db4
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    nameFileIdTable:
+      "mona\u7B2C\u4E00\u9636\u6BB5_0": 650905863
+      "mona\u7B2C\u4E00\u9636\u6BB5_1": 139125128
+      "mona\u7B2C\u4E00\u9636\u6BB5_10": 230359463
+      "mona\u7B2C\u4E00\u9636\u6BB5_11": 163421936
+      "mona\u7B2C\u4E00\u9636\u6BB5_12": 1301383409
+      "mona\u7B2C\u4E00\u9636\u6BB5_13": -1736538318
+      "mona\u7B2C\u4E00\u9636\u6BB5_14": 1367705169
+      "mona\u7B2C\u4E00\u9636\u6BB5_15": 1500194434
+      "mona\u7B2C\u4E00\u9636\u6BB5_16": -929282767
+      "mona\u7B2C\u4E00\u9636\u6BB5_17": -1481690269
+      "mona\u7B2C\u4E00\u9636\u6BB5_18": 1777310497
+      "mona\u7B2C\u4E00\u9636\u6BB5_19": -1507774564
+      "mona\u7B2C\u4E00\u9636\u6BB5_2": -1164313765
+      "mona\u7B2C\u4E00\u9636\u6BB5_3": 211899447
+      "mona\u7B2C\u4E00\u9636\u6BB5_4": 752614029
+      "mona\u7B2C\u4E00\u9636\u6BB5_5": 837481156
+      "mona\u7B2C\u4E00\u9636\u6BB5_6": -1718259129
+      "mona\u7B2C\u4E00\u9636\u6BB5_7": 957885596
+      "mona\u7B2C\u4E00\u9636\u6BB5_8": 1834705084
+      "mona\u7B2C\u4E00\u9636\u6BB5_9": 1135943825
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
