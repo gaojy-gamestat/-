@@ -166,6 +166,8 @@ namespace GameNet.Gameplay
         private readonly List<Vector2> _activePath = new List<Vector2>();
         private readonly List<VillaDoor> _pathDoors = new List<VillaDoor>();
         private readonly List<Vector2> _pathLandings = new List<Vector2>();
+        private float _retryAt;
+        private float _doorProgress = -1f;
         private int _activePathIndex;
         private float _lastDoorTime = -10f;
         private string _currentAnim;
@@ -267,6 +269,7 @@ namespace GameNet.Gameplay
         /// <summary>停止巡逻（比如玩家通关了）：走到哪停哪，改播 stopAction 并一直循环。</summary>
         public void StopPatrol()
         {
+            _doorProgress = -1f;
             _patrolling = false;
             PlayAnim(ActionState(stopAction));
             Debug.Log("[杜克巡逻] 已停止巡逻（通关），播放动作：" + ActionState(stopAction));
@@ -320,16 +323,42 @@ namespace GameNet.Gameplay
             }
 
             _walkTimer += Time.deltaTime;
+            if (_doorProgress >= 0f)
+            {
+                float before = _doorProgress;
+                _doorProgress += Time.deltaTime;
+                if (before < .25f && _doorProgress >= .25f)
+                    transform.position = ToGround(_pathLandings[_activePathIndex]);
+                if (_doorProgress >= .5f)
+                {
+                    _doorProgress = -1f;
+                    _lastDoorTime = Time.time;
+                    _activePathIndex++;
+                }
+                return;
+            }
+            if (Time.time < _retryAt) return;
             if (_activePathIndex < _activePath.Count)
             {
                 Vector2 point = _activePath[_activePathIndex];
                 Vector3 target = ToGround(point);
                 Vector3 next = Vector3.MoveTowards(transform.position, target, _walkSpeed * Time.deltaTime);
-                // 路线必须绕开障碍；被新家具挡住时停下并报告，不能穿过去或跳到终点。
+                // 遇到新障碍重新规划，不能关闭脚本或跳过阻挡。
                 if (room != null && room.IsBlockedPath(CollisionPoint(transform.position), CollisionPoint(next), clearanceNorm))
                 {
-                    Debug.LogError($"[杜克巡逻] 路线被家具阻挡：{destination.stopName}，路点 {_activePathIndex}，图坐标 {ImageNorm}。", this);
-                    enabled = false;
+                    var detour = DukeRoutePlanner.Find(room, ImageNorm, point, clearanceNorm + .003f);
+                    if (detour != null && detour.Count > 0)
+                    {
+                        _activePath.InsertRange(_activePathIndex, detour);
+                        _pathDoors.InsertRange(_activePathIndex, new VillaDoor[detour.Count]);
+                        _pathLandings.InsertRange(_activePathIndex, new Vector2[detour.Count]);
+                        Debug.Log("[杜克巡逻] 已绕开障碍，继续巡逻。", this);
+                    }
+                    else
+                    {
+                        if (Time.time >= _retryAt) Debug.LogWarning($"[杜克巡逻] 暂无安全通路：{ImageNorm:F4} -> {point:F4}，等待障碍移开后重试。", this);
+                        _retryAt = Time.time + 1f;
+                    }
                     return;
                 }
                 transform.position = next;
@@ -343,10 +372,8 @@ namespace GameNet.Gameplay
                     if (door != null)
                     {
                         if (Time.time - _lastDoorTime < Mathf.Max(0f, door.retriggerCooldown)) return;
-                        Vector2 landing = _pathLandings[_activePathIndex];
-                        Debug.Log($"[杜克门口] {door.name} → {door.targetDoor.name}，门外={point}，落点={landing}", this);
-                        transform.position = ToGround(landing);
-                        _lastDoorTime = Time.time;
+                        _doorProgress = 0f;
+                        return;
                     }
                     _activePathIndex++;
                 }
@@ -370,6 +397,8 @@ namespace GameNet.Gameplay
 
             _phase = Phase.Walking;
             _walkTimer = 0f;
+            _retryAt = 0f;
+            _doorProgress = -1f;
             _walkDuration = Mathf.Max(0.1f, destination.travelSeconds);
             _activePath.Clear();
             if (destination.routePoints != null)
@@ -387,6 +416,7 @@ namespace GameNet.Gameplay
             }
 
             PreparePortalApproaches();
+            PrepareDetours();
             _activePathIndex = 0;
             float pathLength = CalculateWalkPathLength();
             _walkSpeed = Mathf.Max(0.001f, Mathf.Min(pathLength / _walkDuration, SpeedWorld()));
@@ -405,6 +435,28 @@ namespace GameNet.Gameplay
             }
 
             return total;
+        }
+
+        private void PrepareDetours()
+        {
+            if (room == null || !room.IsReady) return;
+            Vector2 cursor = ImageNorm;
+            for (int i = 0; i < _activePath.Count; i++)
+            {
+                Vector2 point = _activePath[i];
+                if (room.IsBlockedPath(room.ImageNormToGround(cursor), room.ImageNormToGround(point), clearanceNorm + .003f))
+                {
+                    var detour = DukeRoutePlanner.Find(room, cursor, point, clearanceNorm + .003f);
+                    if (detour != null && detour.Count > 0)
+                    {
+                        _activePath.InsertRange(i, detour);
+                        _pathDoors.InsertRange(i, new VillaDoor[detour.Count]);
+                        _pathLandings.InsertRange(i, new Vector2[detour.Count]);
+                        i += detour.Count;
+                    }
+                }
+                cursor = _pathDoors[i] != null ? _pathLandings[i] : point;
+            }
         }
 
         private void PreparePortalApproaches()
@@ -462,6 +514,19 @@ namespace GameNet.Gameplay
                 landing.y = bottom + doorStandOff;
             else
                 landing.x = delta.x >= 0f ? right + doorStandOff : left - doorStandOff;
+            if (room != null && room.IsBlocked(room.ImageNormToGround(landing), clearanceNorm + .003f))
+            {
+                // 门旁家具也会挡住默认落点，先找门外安全地板，不能落在沙发碰撞边上。
+                for (float distance = .004f; distance <= .08f; distance += .004f)
+                for (int direction = 0; direction < 16; direction++)
+                {
+                    float angle = direction * Mathf.PI / 8f;
+                    Vector2 candidate = landing + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                    Vector3 world = room.ImageNormToGround(candidate);
+                    if (!target.ContainsImageNorm(candidate) && room.FloorNameAt(world) != null &&
+                        !room.IsBlocked(world, clearanceNorm + .003f)) return candidate;
+                }
+            }
             return landing;
         }
 
@@ -792,6 +857,9 @@ namespace GameNet.Gameplay
 
             // 1) 贴图：直接抄世界 SpriteRenderer 当前帧（Animator 播到哪就是哪）
             _mirrorImage.sprite = _spriteRenderer != null ? _spriteRenderer.sprite : null;
+            Color tint = _mirrorImage.color;
+            tint.a = _doorProgress < 0f ? 1f : Mathf.Abs(_doorProgress - .25f) * 4f;
+            _mirrorImage.color = tint;
             _mirrorImage.enabled = _mirrorImage.sprite != null;
             if (_mirrorImage.sprite == null)
             {

@@ -99,6 +99,14 @@ namespace GameNet.EditorTools
                 if (plane.Raycast(ray, out float dist))
                 {
                     Vector2 norm = room.GroundToImageNorm(ray.GetPoint(dist));
+                    if (norm.x < 0f || norm.x > 1f || norm.y < 0f || norm.y > 1f ||
+                        room.FloorNameAt(room.ImageNormToGround(norm)) == null ||
+                        room.IsBlocked(room.ImageNormToGround(norm), duke.clearanceNorm))
+                    {
+                        Debug.LogWarning("路点必须位于别墅地板的空闲区域；本次点击未保存。");
+                        e.Use();
+                        return;
+                    }
                     Undo.RecordObject(duke, "添加巡逻路点");
                     stop.routePoints.Add(norm);
                     EditorUtility.SetDirty(duke);
