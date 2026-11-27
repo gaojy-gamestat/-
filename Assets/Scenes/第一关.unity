@@ -5457,10 +5457,10 @@ MonoBehaviour:
     animationStateOverride: WatchTVSide
     artworkFrame:
       serializedVersion: 2
-      x: 0.4666319082
-      y: 0.6444444444
-      width: 0.0698644421
-      height: 0.1240740741
+      x: 0.4734614303
+      y: 0.6571329571
+      width: 0.0600834202
+      height: 0.1067037037
     foregroundOutline:
     - {x: 0.5022419187, y: 0.7391666667}
     - {x: 0.5260688217, y: 0.7389814815}
@@ -5523,7 +5523,7 @@ MonoBehaviour:
   walkLeftState: WalkLeft
   walkRightState: WalkRight
   stopAction: 2
-  heightRatioOfVilla: 0.16
+  heightRatioOfVilla: 0.14
   scaleByDepth: 1
   sortingOrder: 10
   enableDebugLog: 1
