@@ -66,6 +66,12 @@ namespace GameNet.Gameplay
             public float staySeconds = 10f;
             [Tooltip("动作画面的对齐点在 sprite 里的位置（0~1，左下为原点）。(-1,-1) = 按动作自动取默认。")]
             public Vector2 anchorInFrame = new Vector2(-1f, -1f);
+            [Tooltip("站点专用 Animator 状态。留空沿用动作默认状态。")]
+            public string animationStateOverride;
+            [Tooltip("相对别墅底图的固定摆位，左上为原点。宽度或高度为 0 时按常规角色缩放显示。")]
+            public Rect artworkFrame;
+            [Tooltip("前景遮挡轮廓，按边缘顺序填写归一化底图坐标，左上为原点。")]
+            public Vector2[] foregroundOutline;
             [Header("从上一站走到这里")]
             [Tooltip("这一段步行总时长。行走速度按路线长度自动计算。")]
             [Min(0.1f)] public float travelSeconds = 10f;
@@ -469,7 +475,9 @@ namespace GameNet.Gameplay
             PatrolStop stop = CurrentStop();
             if (stop != null)
             {
-                PlayAnim(ActionState(stop.action));
+                string state = string.IsNullOrEmpty(stop.animationStateOverride)
+                    ? ActionState(stop.action) : stop.animationStateOverride;
+                PlayAnim(state);
                 Debug.Log($"[杜克巡逻] 到达「{stop.stopName}」，播放 {stop.action}，停留 {stop.staySeconds:F1} 秒。");
             }
         }
@@ -787,6 +795,32 @@ namespace GameNet.Gameplay
             _mirrorImage.enabled = _mirrorImage.sprite != null;
             if (_mirrorImage.sprite == null)
             {
+                if (_furnitureForeground != null)
+                    _furnitureForeground.Configure(_villaImage, false, false);
+                return;
+            }
+
+            PatrolStop displayStop = CurrentStop();
+            bool acting = _phase == Phase.Acting && displayStop != null;
+            bool fixedPlacement = _patrolling && acting &&
+                displayStop.artworkFrame.width > 0 && displayStop.artworkFrame.height > 0;
+            if (_furnitureForeground != null)
+            {
+                _furnitureForeground.Configure(_villaImage,
+                    _patrolling && acting && displayStop.action == DukeAction.WatchTV,
+                    (_patrolling && acting && displayStop.action == DukeAction.Sleep) ||
+                    (!_patrolling && stopAction == DukeAction.Sleep && acting && displayStop.action == DukeAction.Sleep),
+                    fixedPlacement ? displayStop.foregroundOutline : null);
+            }
+
+            if (fixedPlacement)
+            {
+                Rect art = DukeFurnitureForeground.GetArtworkRect(_villaImage);
+                Rect spriteRect = displayStop.artworkFrame;
+                _mirrorRt.sizeDelta = new Vector2(art.width * spriteRect.width, art.height * spriteRect.height);
+                _mirrorRt.anchoredPosition = new Vector2(
+                    art.xMin + art.width * spriteRect.center.x,
+                    art.yMax - art.height * spriteRect.center.y) - _villaImage.rectTransform.rect.center;
                 return;
             }
 
@@ -801,8 +835,7 @@ namespace GameNet.Gameplay
 
             // 3) 位置：对齐点（脚底/座位/床中心）世界坐标 → 屏幕像素 → 别墅图局部坐标
             Vector3 displayPosition = transform.position;
-            PatrolStop displayStop = CurrentStop();
-            if (_phase == Phase.Acting && displayStop != null && displayStop.activityNorm.x >= 0f)
+            if (acting && displayStop.activityNorm.x >= 0f)
                 displayPosition = ToGround(displayStop.activityNorm);
             Vector3 screen = _cam.WorldToScreenPoint(displayPosition);
             if (screen.z <= 0f)
@@ -824,13 +857,6 @@ namespace GameNet.Gameplay
 
             Vector2 offset = new Vector2((anchor.x - 0.5f) * size.x, (anchor.y - 0.5f) * size.y);
             _mirrorRt.anchoredPosition = local - offset;
-            if (_furnitureForeground != null)
-            {
-                bool acting = _phase == Phase.Acting && displayStop != null;
-                _furnitureForeground.Configure(_villaImage, _mirrorRt,
-                    acting && displayStop.action == DukeAction.WatchTV,
-                    acting && displayStop.action == DukeAction.Sleep);
-            }
         }
 
         /// <summary>当前对齐点：站点的 Anchor In Frame，没填 (-1,-1) 就按动作取默认值。</summary>
